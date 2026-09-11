@@ -23,7 +23,7 @@ Aplicativo web progressivo para criação, estudo e exportação de mapas mentai
 
 Mapas, anexos, gravações e configuração de IA ficam no IndexedDB do navegador. As chaves de API não fazem parte dos arquivos do repositório nem dos backups JSON do mapa.
 
-**Atenção:** em um aplicativo puramente frontend, uma chave usada em chamadas diretas para uma API fica acessível ao próprio navegador/usuário. Para uma implantação pública, use um backend/proxy seguro e mantenha a chave em variáveis de ambiente do servidor.
+As chamadas de IA passam por `api/ai-proxy.js`, uma função serverless same-origin que encaminha a requisição ao provedor e não persiste a chave. A chave continua armazenada no IndexedDB do navegador porque é uma credencial fornecida pelo próprio usuário; portanto, evite dispositivos públicos ou compartilhados.
 
 ## Exportação PDF
 
@@ -37,7 +37,8 @@ O projeto não exige etapa de build. Os arquivos principais são:
 - `styles.css` — layout e temas
 - `app.js` — editor e interação
 - `db.js` — IndexedDB
-- `ai.js` — integração de IA
+- `ai.js` — integração de IA no cliente
+- `api/ai-proxy.js` — proxy serverless para OpenAI/Gemini
 - `export.js` — PDF/SVG/PNG/JSON
 - `sw.js` — service worker
 
