@@ -20,75 +20,32 @@ function cleanJson(text) {
   return JSON.parse(raw.slice(first, last + 1));
 }
 
-function openAIBase(config) {
-  return (config.baseUrl || 'https://api.openai.com/v1').replace(/\/$/, '');
-}
-
-async function fetchJson(url, options = {}) {
-  const res = await fetch(url, options);
+async function proxyCall(payload) {
+  const res = await fetch('/api/ai-proxy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   let body;
-  try { body = await res.json(); } catch { body = { error: { message: await res.text().catch(() => '') } }; }
-  if (!res.ok) {
-    const msg = body?.error?.message || body?.message || `${res.status} ${res.statusText}`;
-    throw new Error(msg);
-  }
+  try { body = await res.json(); } catch { body = {}; }
+  if (!res.ok) throw new Error(body.error || `${res.status} ${res.statusText}`);
   return body;
 }
 
 export async function testAI(config) {
   if (!config?.key) throw new Error('Informe a chave da API.');
-  if (config.provider === 'gemini') {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(config.key)}`;
-    const body = await fetchJson(url);
-    const models = (body.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent'));
-    const names = models.map(m => m.name.replace('models/', ''));
-    const model = config.model || names[0] || 'gemini-2.5-flash';
-    const found = names.includes(model);
-    return { ok: true, provider: 'Gemini', model, found, models: names.slice(0, 30), message: found ? `Chave válida. Modelo ${model} disponível.` : `Chave válida. Modelo ${model} não apareceu na lista; escolha um dos modelos disponíveis.` };
-  }
-
-  const body = await fetchJson(`${openAIBase(config)}/models`, {
-    headers: { Authorization: `Bearer ${config.key}` }
-  });
-  const names = (body.data || []).map(m => m.id).sort();
-  const model = config.model || names.find(n => /^gpt-/i.test(n)) || names[0] || 'gpt-5';
+  const out = await proxyCall({ action: 'models', provider: config.provider, key: config.key, baseUrl: config.baseUrl || '' });
+  const names = (out.models || []).sort();
+  const model = config.model || (config.provider === 'gemini' ? names[0] || 'gemini-2.5-flash' : names.find(n => /^gpt-/i.test(n)) || names[0] || 'gpt-5');
   const found = names.includes(model);
-  return { ok: true, provider: 'OpenAI', model, found, models: names.filter(n => /gpt|o\d|chat/i.test(n)).slice(0, 50), message: found ? `Chave válida. Modelo ${model} disponível.` : `Chave válida. Modelo ${model} não apareceu na lista.` };
+  const filtered = config.provider === 'gemini' ? names.slice(0, 50) : names.filter(n => /gpt|o\d|chat/i.test(n)).slice(0, 60);
+  return { ok: true, provider: config.provider === 'gemini' ? 'Gemini' : 'OpenAI', model, found, models: filtered, message: found ? `Chave válida. Modelo ${model} disponível.` : `Chave válida. Modelo ${model} não apareceu na lista; escolha um modelo detectado.` };
 }
 
-async function callOpenAI(config, system, user, json = false) {
-  const body = {
-    model: config.model || 'gpt-5',
-    messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: user }
-    ]
-  };
-  if (config.temperature !== undefined) body.temperature = config.temperature;
-  if (json) body.response_format = { type: 'json_object' };
-  const out = await fetchJson(`${openAIBase(config)}/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.key}` },
-    body: JSON.stringify(body)
-  });
-  return out.choices?.[0]?.message?.content || '';
-}
-
-async function callGemini(config, system, user, json = false) {
-  const model = config.model || 'gemini-2.5-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(config.key)}`;
-  const body = {
-    systemInstruction: { parts: [{ text: system }] },
-    contents: [{ role: 'user', parts: [{ text: user }] }],
-    generationConfig: json ? { responseMimeType: 'application/json' } : {}
-  };
-  const out = await fetchJson(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  return (out.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('\n');
+async function callProvider(config, system, user, json = false) {
+  const out = await proxyCall({ action: 'chat', provider: config.provider, key: config.key, model: config.model, baseUrl: config.baseUrl || '', system, user, json });
+  return out.content || '';
 }
 
 export async function askAI(config, system, user, json = false) {
   if (!config?.key) throw new Error('Configure e teste uma chave de IA primeiro.');
-  return config.provider === 'gemini' ? callGemini(config, system, user, json) : callOpenAI(config, system, user, json);
+  return callProvider(config, system, user, json);
 }
 
 export async function generateMapWithAI(config, options) {
