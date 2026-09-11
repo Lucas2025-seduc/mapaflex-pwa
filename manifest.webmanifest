@@ -1,0 +1,19 @@
+{
+  "name": "MapaFlex PWA",
+  "short_name": "MapaFlex",
+  "description": "Crie, organize e estude mapas mentais e conceituais.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#111827",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
