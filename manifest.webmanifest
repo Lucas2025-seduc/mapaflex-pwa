@@ -1,19 +1,20 @@
 {
-  "name": "MapaFlex PWA",
+  "name": "MapaFlex — Mapas Conceituais",
   "short_name": "MapaFlex",
-  "description": "Crie, organize e estude mapas mentais e conceituais.",
+  "description": "Crie mapas mentais e conceituais com IA, anexos, áudio, armazenamento local e exportação vetorial.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0b1020",
-  "theme_color": "#111827",
+  "orientation": "any",
+  "background_color": "#090d18",
+  "theme_color": "#0b1020",
   "lang": "pt-BR",
+  "categories": ["education", "productivity", "utilities"],
   "icons": [
-    {
-      "src": "/icons/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Novo mapa", "short_name": "Novo", "url": "/?action=new", "icons": [{ "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }] }
   ]
 }
