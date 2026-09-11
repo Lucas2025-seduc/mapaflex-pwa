@@ -3,101 +3,140 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
-  <meta name="description" content="MapaFlex PWA — editor avançado de mapas mentais e conceituais com IA, anexos, áudio, IndexedDB e exportação vetorial." />
+  <meta name="theme-color" content="#0b1020" />
+  <meta name="description" content="MapaFlex — mapas mentais e conceituais com IA, anexos, áudio, IndexedDB e exportação vetorial." />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/styles.css" />
-  <title>MapaFlex PWA</title>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js" defer></script>
+  <title>MapaFlex</title>
 </head>
 <body>
-  <header class="topbar">
-    <section class="brand">
-      <span class="logo">MF</span>
-      <div><small>MapaFlex PWA</small><h1 id="mapTitleView">Mapa conceitual</h1></div>
-    </section>
-    <nav class="top-actions">
-      <button id="newMapBtn">Novo</button>
-      <button id="saveBtn">Salvar</button>
-      <button id="importBtn">Importar</button>
-      <button id="exportJsonBtn">JSON</button>
-      <button id="exportSvgBtn">SVG</button>
-      <button id="exportPdfBtn" class="primary">PDF 1 página</button>
-      <button id="installBtn" hidden>Instalar</button>
+  <header class="appbar">
+    <div class="brand"><img src="/icons/icon.svg" alt="" /><div><strong>MapaFlex</strong><span>Estúdio de mapas conceituais</span></div></div>
+    <div class="title-zone"><input id="mapTitle" aria-label="Título do mapa" maxlength="160" /><span id="saveStatus" class="save-status">Pronto</span></div>
+    <nav class="top-actions" aria-label="Ações principais">
+      <button id="undoBtn" class="icon-btn" title="Desfazer (Ctrl+Z)">↶</button>
+      <button id="redoBtn" class="icon-btn" title="Refazer (Ctrl+Y)">↷</button>
+      <button id="aiGenerateBtn" class="primary compact-btn">✦ Gerar com IA</button>
+      <details class="menu"><summary class="button secondary">Exportar ▾</summary><div class="menu-popover">
+        <button id="pdfBtn">PDF vetorial · 1 página</button><button id="svgBtn">SVG vetorial</button><button id="pngBtn">PNG alta resolução</button><button id="jsonBtn">Backup JSON</button>
+      </div></details>
+      <label class="button secondary compact-btn">Importar<input id="importInput" hidden type="file" accept=".json,.mapaflex.json,application/json" /></label>
+      <button id="installBtn" class="secondary compact-btn" hidden>Instalar</button>
+      <button id="settingsBtn" class="icon-btn" title="Configurações de IA">⚙</button>
     </nav>
   </header>
 
-  <aside class="left panel">
-    <label>Nome do mapa<input id="mapTitleInput" /></label>
-    <div class="grid-actions">
-      <button id="addNodeBtn">+ Balão</button>
-      <button id="addChildBtn">+ Filho</button>
-      <button id="connectBtn">Conectar</button>
-      <button id="deleteBtn" class="danger">Excluir</button>
-      <button id="layoutBtn">Auto layout</button>
-      <button id="separateBtn">Sem sobrepor</button>
-      <button id="centerBtn">Centralizar</button>
-      <button id="duplicateBtn">Duplicar</button>
-    </div>
-    <section class="card stats">
-      <span><b id="nodeCount">0</b> balões</span>
-      <span><b id="edgeCount">0</b> ligações</span>
-      <span><b id="attachmentCount">0</b> anexos</span>
-    </section>
-    <p id="saveState" class="muted">Carregando IndexedDB...</p>
-    <section class="card"><h2>Atalhos</h2><p><kbd>duplo clique</kbd> cria balão · <kbd>Ctrl+S</kbd> salva · <kbd>Del</kbd> exclui · roda do mouse dá zoom.</p></section>
-    <section class="card"><h2>Mapas salvos</h2><div id="mapList"></div></section>
-  </aside>
+  <main class="app-layout">
+    <aside class="left-panel">
+      <section class="side-section library-section">
+        <div class="section-title"><h2>Meus mapas</h2><button id="newMapBtn" class="icon-btn small-icon" title="Novo mapa">＋</button></div>
+        <input id="mapSearch" class="mini-input" placeholder="Buscar mapas…" />
+        <div id="mapList" class="map-list"></div>
+        <div class="library-actions"><button id="duplicateMapBtn" class="secondary tiny">Duplicar</button><button id="deleteMapBtn" class="danger tiny">Excluir</button></div>
+      </section>
 
-  <main class="workspace">
-    <div class="floating"><button id="zoomOutBtn">−</button><b id="zoomLabel">100%</b><button id="zoomInBtn">+</button><button id="undoBtn">Desfazer</button><button id="redoBtn">Refazer</button></div>
-    <div id="canvas" class="canvas"><div id="world" class="world"><svg id="edgeSvg" width="20000" height="20000"></svg><div id="nodeLayer"></div></div></div>
-  </main>
+      <section class="side-section">
+        <div class="section-title"><h2>Construir</h2><span id="nodeCount" class="badge">0</span></div>
+        <div class="tool-grid">
+          <button id="addNodeBtn" class="tool-btn"><span>＋</span>Novo balão</button>
+          <button id="addChildBtn" class="tool-btn"><span>↳</span>Adicionar filho</button>
+          <button id="connectBtn" class="tool-btn"><span>⇄</span>Relacionar</button>
+          <button id="deleteNodeBtn" class="tool-btn danger-soft"><span>⌫</span>Excluir balão</button>
+        </div>
+      </section>
 
-  <aside class="right panel">
-    <div class="tabs"><button class="tab active" data-tab="node">Balão</button><button class="tab" data-tab="files">Anexos</button><button class="tab" data-tab="ai">IA</button></div>
+      <section class="side-section">
+        <div class="section-title"><h2>Organização</h2></div>
+        <button id="autoLayoutBtn" class="wide secondary">Auto-organizar hierarquia</button>
+        <button id="resolveOverlapBtn" class="wide secondary">Remover sobreposições</button>
+        <button id="fitBtn" class="wide secondary">Ajustar mapa à tela</button>
+      </section>
 
-    <section id="tab-node" class="tabBody active card">
-      <h2>Editor do balão</h2>
-      <p id="emptyNodeHint" class="muted">Selecione um balão.</p>
-      <div id="nodeEditor" hidden>
-        <label>Título<input id="nodeTitle" /></label>
-        <label>Explicação<textarea id="nodeText" rows="7"></textarea></label>
-        <label>Cor<input id="nodeColor" type="color" value="#2563eb" /></label>
-        <label>Forma<select id="nodeShape"><option value="rounded">Arredondado</option><option value="pill">Cápsula</option><option value="sharp">Retângulo</option><option value="note">Nota</option></select></label>
-        <label>Linguagem<select id="nodeLevel"><option value="fundamental">Fundamental</option><option value="medio">Médio</option><option value="superior">Superior</option><option value="pos">Pós-graduação</option></select></label>
+      <section class="side-section tips">
+        <h2>Atalhos</h2>
+        <p><kbd>Duplo clique</kbd> cria balão · <kbd>Del</kbd> exclui · <kbd>Ctrl+S</kbd> salva · roda do mouse com <kbd>Ctrl</kbd> aplica zoom.</p>
+        <p>Os mapas e anexos são salvos localmente em <strong>IndexedDB</strong>.</p>
+        <div id="storageInfo" class="storage-info"></div>
+      </section>
+    </aside>
+
+    <section class="canvas-column">
+      <div class="canvas-toolbar">
+        <div class="zoom-group"><button id="zoomOutBtn">−</button><button id="zoomResetBtn"><span id="zoomLabel">100%</span></button><button id="zoomInBtn">＋</button></div>
+        <div class="canvas-info"><span id="selectionHint">Clique em um balão para editar</span></div>
+        <div class="view-group"><button id="themeBtn" class="secondary tiny">☾ Tema</button><button id="fullscreenBtn" class="secondary tiny">⛶ Tela cheia</button></div>
+      </div>
+      <div id="canvasViewport" class="canvas-viewport" tabindex="0" aria-label="Área do mapa">
+        <div id="canvasStage" class="canvas-stage">
+          <svg id="edgesLayer" class="edges-layer" width="12000" height="8000" viewBox="0 0 12000 8000" aria-hidden="true"></svg>
+          <div id="nodesLayer" class="nodes-layer"></div>
+        </div>
+        <div class="canvas-watermark">MapaFlex · arraste o fundo para navegar</div>
       </div>
     </section>
 
-    <section id="tab-files" class="tabBody card">
-      <h2>Anexos no balão</h2>
-      <p class="muted">PDF, PowerPoint, áudio, vídeo, imagem e documentos ficam no IndexedDB.</p>
-      <button id="attachFileBtn">Inserir arquivo</button>
-      <button id="recordBtn">Gravar áudio</button>
-      <button id="stopRecordBtn" class="danger" disabled>Parar gravação</button>
-      <small id="recordState" class="muted">Pronto</small>
-      <div id="attachmentList"></div>
-    </section>
+    <aside class="right-panel">
+      <div class="tabs"><button class="tab active" data-tab="inspector">Balão</button><button class="tab" data-tab="assistant">IA</button></div>
+      <section id="inspectorTab" class="tab-panel active">
+        <div id="emptyInspector" class="empty-state"><div class="empty-icon">◉</div><h3>Nenhum balão selecionado</h3><p>Selecione um balão para editar conteúdo, cor, relações e anexos.</p></div>
+        <div id="nodeInspector" hidden>
+          <label class="field"><span>Título</span><input id="nodeTitle" maxlength="160" /></label>
+          <label class="field"><span>Conteúdo</span><textarea id="nodeText" rows="8" placeholder="Definição, explicação, exemplo, observação…"></textarea></label>
+          <div class="two-cols"><label class="field"><span>Cor</span><input id="nodeColor" type="color" /></label><label class="field"><span>Tipo</span><select id="nodeKind"><option value="concept">Conceito</option><option value="example">Exemplo</option><option value="question">Questão</option><option value="note">Nota</option><option value="warning">Alerta</option></select></label></div>
+          <label class="field"><span>Balão-pai</span><select id="nodeParent"><option value="">Sem pai</option></select></label>
+          <div class="section-divider"></div>
+          <div class="section-title"><h2>Anexos</h2><span id="attachmentCount" class="badge">0</span></div>
+          <label class="drop-zone">＋ PDF, PowerPoint, imagem, vídeo, áudio ou outro arquivo<input id="attachmentInput" hidden type="file" multiple accept=".pdf,.ppt,.pptx,audio/*,image/*,video/*,.doc,.docx,.xls,.xlsx,.txt" /></label>
+          <div class="record-row"><button id="recordBtn" class="secondary wide">● Gravar áudio</button><span id="recordTimer"></span></div>
+          <div id="attachmentList" class="attachment-list"></div>
+          <div class="section-divider"></div>
+          <button id="saveNodeBtn" class="primary wide">Salvar alterações do balão</button>
+        </div>
+      </section>
 
-    <section id="tab-ai" class="tabBody card">
-      <h2>IA</h2>
-      <p class="muted">A chave fica localmente no IndexedDB. Para produção pública, use backend/Worker.</p>
-      <label>Provedor<select id="aiProvider"><option value="openai">OpenAI / ChatGPT</option><option value="gemini">Google Gemini</option></select></label>
-      <label>Chave<input id="aiKey" type="password" placeholder="Cole sua API key" /></label>
-      <label>Modelo<input id="aiModel" placeholder="gpt-4.1-mini ou gemini-1.5-flash" /></label>
-      <button id="saveAiKeyBtn">Salvar chave</button><button id="testAiBtn">Testar</button>
-      <label>Tema<textarea id="aiTopic" rows="3" placeholder="Ex.: fotossíntese"></textarea></label>
-      <label>Profundidade<select id="aiDepth"><option value="simples">Simples</option><option value="aprofundado">Aprofundado</option><option value="superaprofundado">Superaprofundado</option><option value="completo">Completo/estendido</option></select></label>
-      <label>Linguagem<select id="aiAudience"><option value="fundamental">Ensino fundamental</option><option value="medio">Ensino médio</option><option value="superior">Ensino superior</option><option value="pos">Pós-graduação</option></select></label>
-      <label class="check"><input id="aiExamples" type="checkbox" checked /> incluir exemplos e questões</label>
-      <button id="generateAiMapBtn" class="primary wide">Gerar mapa completo</button>
-      <pre id="aiLog"></pre>
-    </section>
-  </aside>
+      <section id="assistantTab" class="tab-panel">
+        <div class="assistant-head"><div class="ai-orb">✦</div><div><h3>Assistente do mapa</h3><p>Usa o provedor configurado por você.</p></div></div>
+        <label class="field"><span>Nível de linguagem</span><select id="assistantLevel"><option value="fundamental">Ensino fundamental</option><option value="medio">Ensino médio</option><option value="superior" selected>Ensino superior</option><option value="pos">Pós-graduação</option></select></label>
+        <div class="ai-action-grid"><button data-ai-task="explain">Explicar conceito</button><button data-ai-task="examples">Dar exemplos</button><button data-ai-task="questions">Criar questões</button><button data-ai-task="connections">Sugerir conexões</button><button data-ai-task="materials">Materiais de estudo</button></div>
+        <label class="field"><span>Pergunte algo</span><textarea id="aiQuestion" rows="4" placeholder="Ex.: qual a relação deste conceito com…?"></textarea></label>
+        <button id="askAiBtn" class="primary wide">Perguntar à IA</button>
+        <div id="aiStatus" class="inline-status"></div>
+        <article id="aiAnswer" class="ai-answer" hidden></article>
+        <div id="applyAiArea" hidden><button id="appendAiBtn" class="secondary wide">Adicionar resposta ao balão</button></div>
+      </section>
+    </aside>
+  </main>
 
-  <input id="fileAttachmentInput" type="file" multiple hidden accept=".pdf,.ppt,.pptx,.doc,.docx,.png,.jpg,.jpeg,.webp,.svg,.mp3,.wav,.ogg,.webm,.mp4,.txt,.md,audio/*,video/*,image/*,application/pdf" />
-  <input id="jsonFileInput" type="file" hidden accept="application/json,.json" />
-  <div id="toast"></div>
-  <script src="/app.js" defer></script>
+  <dialog id="aiSettingsDialog" class="modal">
+    <form method="dialog" class="modal-card wide-modal">
+      <div class="modal-head"><div><p class="eyebrow">Integração de IA</p><h2>Configurar provedor</h2></div><button value="cancel" class="icon-btn">✕</button></div>
+      <div class="security-note"><strong>Importante:</strong> a chave fica somente neste navegador, armazenada em IndexedDB. Em aplicações web, chamadas diretas expõem a chave ao próprio navegador. Para uso público/produção, prefira um backend/proxy seguro.</div>
+      <div class="two-cols"><label class="field"><span>Provedor</span><select id="aiProvider"><option value="openai">OpenAI / ChatGPT</option><option value="gemini">Google Gemini</option></select></label><label class="field"><span>Modelo</span><input id="aiModel" placeholder="ex.: gpt-5 ou gemini-2.5-flash" /></label></div>
+      <label class="field"><span>Chave de API</span><div class="input-action"><input id="aiKey" type="password" autocomplete="off" placeholder="Cole a chave aqui" /><button id="toggleKeyBtn" type="button" class="secondary">Mostrar</button></div></label>
+      <label id="baseUrlField" class="field"><span>Base URL (opcional, OpenAI compatível)</span><input id="aiBaseUrl" placeholder="https://api.openai.com/v1" /></label>
+      <div class="test-row"><button id="testAiBtn" type="button" class="secondary">Testar chave e modelo</button><span id="testAiStatus"></span></div>
+      <label class="field"><span>Modelos detectados</span><select id="detectedModels"><option value="">Teste a chave para listar modelos</option></select></label>
+      <div class="modal-actions"><button value="cancel" class="secondary">Cancelar</button><button id="saveAiSettingsBtn" type="button" class="primary">Salvar configuração</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="generateDialog" class="modal">
+    <form method="dialog" class="modal-card wide-modal">
+      <div class="modal-head"><div><p class="eyebrow">Mapa completo com IA</p><h2>Gerar mapa conceitual</h2></div><button value="cancel" class="icon-btn">✕</button></div>
+      <label class="field"><span>Tema / assunto</span><textarea id="genTopic" rows="3" placeholder="Ex.: fisiologia da tireoide; fotossíntese; farmacologia dos anti-hipertensivos…"></textarea></label>
+      <div class="two-cols"><label class="field"><span>Profundidade</span><select id="genMode"><option value="simples">Simples</option><option value="aprofundado" selected>Aprofundado</option><option value="superaprofundado">Superaprofundado</option><option value="completo">Completo / estendido</option></select></label><label class="field"><span>Linguagem</span><select id="genLevel"><option value="fundamental">Ensino fundamental</option><option value="medio">Ensino médio</option><option value="superior" selected>Ensino superior</option><option value="pos">Pós-graduação</option></select></label></div>
+      <label class="check-row"><input id="genExamples" type="checkbox" checked /> Incluir exemplos nos balões quando forem úteis</label>
+      <div class="mode-help"><strong>Completo/estendido</strong> solicita muitas ramificações e subdivisões. A quantidade final depende dos limites do modelo de IA escolhido.</div>
+      <div id="genStatus" class="inline-status"></div>
+      <div class="modal-actions"><button value="cancel" class="secondary">Cancelar</button><button id="generateNowBtn" type="button" class="primary">✦ Gerar mapa</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="confirmDialog" class="modal small-modal"><form method="dialog" class="modal-card"><h2 id="confirmTitle">Confirmar</h2><p id="confirmText"></p><div class="modal-actions"><button value="cancel" class="secondary">Cancelar</button><button id="confirmOk" value="ok" class="danger">Confirmar</button></div></form></dialog>
+
+  <input id="hiddenFileInput" type="file" hidden />
+  <script type="module" src="/app.js"></script>
 </body>
 </html>
