@@ -16,12 +16,24 @@ async function secretValue(env, name) {
   return '';
 }
 
+function bindingInfo(env, name) {
+  const binding = env?.[name];
+  return {
+    exists: Boolean(binding),
+    type: binding === null ? 'null' : typeof binding,
+    hasGet: Boolean(binding && typeof binding.get === 'function')
+  };
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
 
   if (request.method !== 'GET') {
     return new Response(JSON.stringify({ ok: false, code: 'METHOD_NOT_ALLOWED' }), { status: 405, headers });
   }
+
+  const diag = new URL(request.url).searchParams.has('diag');
+  const respond = (body, status = 200) => new Response(JSON.stringify(body), { status: diag ? 200 : status, headers });
 
   const databaseUrl = await secretValue(env, 'DATABASE_URL');
   const stripeWebhookSecret = await secretValue(env, 'STRIPE_WEBHOOK_SECRET');
@@ -30,41 +42,40 @@ export async function onRequest(context) {
     platform: 'cloudflare-workers',
     storage: 'neon-postgres',
     databaseUrlPresent: Boolean(databaseUrl),
-    stripeWebhookSecretPresent: Boolean(stripeWebhookSecret)
+    stripeWebhookSecretPresent: Boolean(stripeWebhookSecret),
+    bindings: {
+      DATABASE_URL: bindingInfo(env, 'DATABASE_URL'),
+      STRIPE_WEBHOOK_SECRET: bindingInfo(env, 'STRIPE_WEBHOOK_SECRET')
+    }
   };
 
-  if (!databaseUrl) {
-    return new Response(JSON.stringify({ ...base, code: 'DB_URL_MISSING' }), { status: 503, headers });
-  }
-
-  if (!stripeWebhookSecret) {
-    return new Response(JSON.stringify({ ...base, code: 'STRIPE_SECRET_MISSING' }), { status: 503, headers });
-  }
+  if (!databaseUrl) return respond({ ...base, code: 'DB_URL_MISSING' }, 503);
+  if (!stripeWebhookSecret) return respond({ ...base, code: 'STRIPE_SECRET_MISSING' }, 503);
 
   let sql;
   try {
     sql = neon(databaseUrl);
     await sql`select 1 as ok`;
   } catch {
-    return new Response(JSON.stringify({ ...base, code: 'DB_CONNECTION_FAILED' }), { status: 503, headers });
+    return respond({ ...base, code: 'DB_CONNECTION_FAILED' }, 503);
   }
 
   try {
     const rows = await sql`select code from mapaflex.plans order by code limit 5`;
-    return new Response(JSON.stringify({
+    return respond({
       ...base,
       ok: true,
       code: 'OK',
       databaseConnected: true,
       mapaflexSchemaReadable: true,
       planCodes: rows.map(row => row.code)
-    }), { status: 200, headers });
+    });
   } catch {
-    return new Response(JSON.stringify({
+    return respond({
       ...base,
       code: 'SCHEMA_ACCESS_FAILED',
       databaseConnected: true,
       mapaflexSchemaReadable: false
-    }), { status: 503, headers });
+    }, 503);
   }
 }
