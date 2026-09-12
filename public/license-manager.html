@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MapaFlex — Gerenciador de Licenças</title>
+<style>
+:root{font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;color:#0f172a;background:#f8fafc}*{box-sizing:border-box}body{margin:0}.wrap{max-width:1180px;margin:auto;padding:24px}.head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}.head h1{font-size:24px;margin:0;flex:1}.btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;background:#e2e8f0;color:#0f172a}.btn.primary{background:#2563eb;color:#fff}.btn.danger{background:#fee2e2;color:#991b1b}.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;box-shadow:0 6px 24px rgba(15,23,42,.05);margin-bottom:14px}.status{padding:10px 12px;border-radius:10px;background:#f1f5f9;font-size:13px}.status.good{background:#dcfce7;color:#166534}.status.warn{background:#fef3c7;color:#92400e}.status.bad{background:#fee2e2;color:#991b1b}.login{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}.login input,.field input,.field select{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}.tableWrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:980px}th,td{text-align:left;padding:10px;border-bottom:1px solid #e2e8f0;vertical-align:top}th{font-size:12px;text-transform:uppercase;color:#64748b}.muted{color:#64748b;font-size:12px}.userId{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;word-break:break-all}.pill{display:inline-block;border-radius:999px;padding:3px 8px;background:#e2e8f0;font-size:11px;font-weight:700}.pill.active{background:#dcfce7;color:#166534}.pill.revoked,.pill.suspended,.pill.expired{background:#fee2e2;color:#991b1b}.editor{display:grid;grid-template-columns:130px 180px 100px 110px 120px auto;gap:6px;align-items:end}.editor label{display:block;font-size:11px;color:#64748b;margin-bottom:3px}.check{display:flex;align-items:center;gap:6px;font-size:12px;height:38px}.hidden{display:none!important}@media(max-width:720px){.login{grid-template-columns:1fr}.wrap{padding:12px}.head h1{font-size:20px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head"><h1>Gerenciador de Licenças MapaFlex</h1><a class="btn" href="/">Voltar ao MapaFlex</a><button class="btn" id="refreshBtn" type="button">Atualizar</button><button class="btn danger hidden" id="signOutBtn" type="button">Sair</button></div>
+  <div class="card" id="loginCard">
+    <div class="login"><input id="email" type="email" placeholder="E-mail do administrador"><input id="password" type="password" placeholder="Senha"><button class="btn primary" id="loginBtn" type="button">Entrar</button></div>
+  </div>
+  <div id="status" class="status">Carregando…</div>
+  <div class="card hidden" id="managerCard">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><strong>Usuários e licenças</strong><span class="muted">Ative, suspenda, renove ou revogue sem sistema de pagamento.</span></div>
+    <div class="tableWrap"><table><thead><tr><th>Usuário</th><th>Licença atual</th><th>Configuração</th></tr></thead><tbody id="rows"></tbody></table></div>
+  </div>
+</div>
+<script type="module">
+const AUTH_URL='https://ep-square-paper-aceqdgpa.neonauth.sa-east-1.aws.neon.tech/neondb/auth';
+const DATA_URL='https://ep-square-paper-aceqdgpa.apirest.sa-east-1.aws.neon.tech/neondb/rest/v1';
+const mod=await import('https://esm.sh/@neondatabase/neon-js@0.7.0-beta?bundle');
+const client=mod.createClient({auth:{url:AUTH_URL},dataApi:{url:DATA_URL,options:{db:{schema:'mapaflex'}}}});
+const $=s=>document.querySelector(s), status=$('#status'), rows=$('#rows'), manager=$('#managerCard'), loginCard=$('#loginCard'), signOut=$('#signOutBtn');
+function setStatus(msg,kind=''){status.className='status '+kind;status.textContent=msg;}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function rpc(name,args={}){const r=await client.rpc(name,args);if(r?.error)throw new Error(r.error.message||String(r.error));return r?.data??r;}
+async function session(){const r=await client.auth.getSession();return r?.data?.user||r?.user||r?.data?.session?.user||r?.session?.user||null;}
+async function refresh(){
+  try{
+    const user=await session();
+    if(!user){loginCard.classList.remove('hidden');manager.classList.add('hidden');signOut.classList.add('hidden');setStatus('Entre com a conta administradora.');return;}
+    loginCard.classList.add('hidden');signOut.classList.remove('hidden');
+    const isAdmin=await rpc('is_license_admin');
+    const admin=Array.isArray(isAdmin)?Boolean(isAdmin[0]):Boolean(isAdmin);
+    if(!admin){manager.classList.add('hidden');setStatus('Conta autenticada, mas ainda sem permissão de administrador de licenças.','warn');return;}
+    const data=await rpc('admin_list_users');
+    render(Array.isArray(data)?data:[]);manager.classList.remove('hidden');setStatus('Gerenciador carregado.','good');
+  }catch(e){manager.classList.add('hidden');setStatus(e.message||'Falha ao carregar o gerenciador.','bad');}
+}
+function render(data){
+  rows.innerHTML=data.map(u=>{
+    const valid=u.valid_until?String(u.valid_until).slice(0,10):'';
+    const statusClass=['active'].includes(u.license_status)?'active':(u.license_status||'');
+    return `<tr data-user="${esc(u.user_id)}"><td><strong>${esc(u.name||'Sem nome')}</strong><div>${esc(u.email||'')}</div><div class="userId">${esc(u.user_id)}</div></td><td><span class="pill ${esc(statusClass)}">${esc(u.license_status||'sem licença')}</span><div class="muted">Plano: ${esc(u.plan_code||'-')} · Dispositivos: ${esc(u.max_devices??'-')}</div><div class="muted">Validade: ${esc(valid||'sem expiração')}</div><div class="muted">IA: ${u.premium_ai?'sim':'não'} · Exportação: ${u.advanced_export?'sim':'não'}</div></td><td><div class="editor"><div class="field"><label>Status</label><select class="st"><option value="active">Ativa</option><option value="grace">Tolerância</option><option value="suspended">Suspensa</option><option value="revoked">Revogada</option><option value="expired">Expirada</option></select></div><div class="field"><label>Validade</label><input class="until" type="date" value="${esc(valid)}"></div><div class="field"><label>Dispositivos</label><input class="devices" type="number" min="1" max="20" value="${esc(u.max_devices||2)}"></div><label class="check"><input class="ai" type="checkbox" ${u.premium_ai?'checked':''}> IA Premium</label><label class="check"><input class="export" type="checkbox" ${u.advanced_export?'checked':''}> Exportação</label><button class="btn primary save" type="button">Salvar</button></div></td></tr>`;
+  }).join('')||'<tr><td colspan="3">Nenhum usuário cadastrado ainda.</td></tr>';
+  rows.querySelectorAll('tr[data-user]').forEach(tr=>{
+    const u=data.find(x=>String(x.user_id)===tr.dataset.user);if(u?.license_status)tr.querySelector('.st').value=u.license_status;
+    tr.querySelector('.save').addEventListener('click',()=>saveRow(tr));
+  });
+}
+async function saveRow(tr){
+  const btn=tr.querySelector('.save');btn.disabled=true;setStatus('Salvando licença…');
+  try{
+    const date=tr.querySelector('.until').value;
+    const result=await rpc('admin_set_license',{p_auth_user_id:tr.dataset.user,p_status:tr.querySelector('.st').value,p_valid_until:date?new Date(date+'T23:59:59Z').toISOString():null,p_max_devices:Number(tr.querySelector('.devices').value||2),p_premium_ai:tr.querySelector('.ai').checked,p_advanced_export:tr.querySelector('.export').checked});
+    if(!result)throw new Error('Operação não autorizada.');setStatus('Licença atualizada.','good');await refresh();
+  }catch(e){setStatus(e.message||'Falha ao salvar licença.','bad');}finally{btn.disabled=false;}
+}
+$('#loginBtn').addEventListener('click',async()=>{setStatus('Entrando…');try{const r=await client.auth.signIn.email({email:$('#email').value.trim(),password:$('#password').value});if(r?.error)throw new Error(r.error.message||'Falha no login.');await refresh();}catch(e){setStatus(e.message||'Falha no login.','bad');}});
+$('#refreshBtn').addEventListener('click',refresh);
+signOut.addEventListener('click',async()=>{try{await client.auth.signOut();}catch{}await refresh();});
+refresh();
+</script>
+</body>
+</html>
