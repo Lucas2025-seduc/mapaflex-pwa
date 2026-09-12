@@ -46,6 +46,8 @@ export async function onRequest(context) {
       else if (!body.databaseUrlPresent) diagnosticStatus = 409;
       else if (!body.stripeWebhookSecretPresent) diagnosticStatus = 412;
       else if (body.code === 'DB_CONNECTION_FAILED') diagnosticStatus = 424;
+      else if (body.code === 'DB_ROLE_UNEXPECTED') diagnosticStatus = 425;
+      else if (body.code === 'DB_NAME_UNEXPECTED') diagnosticStatus = 426;
       else if (body.code === 'MAPAFLEX_SCHEMA_MISSING') diagnosticStatus = 423;
       else if (body.code === 'SCHEMA_ACCESS_FAILED') diagnosticStatus = 422;
       return new Response(JSON.stringify({ code: body.code, ok: body.ok }), { status: diagnosticStatus, headers: jsonHeaders });
@@ -85,15 +87,30 @@ export async function onRequest(context) {
     return respond({ ...base, code: 'DB_CONNECTION_FAILED' }, 503);
   }
 
+  let identity;
   try {
-    const [identity] = await sql`select current_database() as database_name, current_user as database_user, to_regclass('mapaflex.plans')::text as plans_table`;
-    if (!identity?.plans_table) {
+    [identity] = await sql`select current_database() as database_name, current_user as database_user`;
+  } catch {
+    return respond({ ...base, code: 'DB_IDENTITY_FAILED', databaseConnected: true }, 503);
+  }
+
+  if (identity?.database_name !== 'neondb') {
+    return respond({ ...base, code: 'DB_NAME_UNEXPECTED', databaseConnected: true, databaseName: identity?.database_name || null }, 503);
+  }
+
+  if (identity?.database_user !== 'mapaflex_backend') {
+    return respond({ ...base, code: 'DB_ROLE_UNEXPECTED', databaseConnected: true, databaseUser: identity?.database_user || null }, 503);
+  }
+
+  try {
+    const [schema] = await sql`select exists(select 1 from information_schema.schemata where schema_name='mapaflex') as schema_exists`;
+    if (!schema?.schema_exists) {
       return respond({
         ...base,
         code: 'MAPAFLEX_SCHEMA_MISSING',
         databaseConnected: true,
-        databaseName: identity?.database_name || null,
-        databaseUser: identity?.database_user || null,
+        databaseName: identity.database_name,
+        databaseUser: identity.database_user,
         mapaflexSchemaReadable: false
       }, 503);
     }
@@ -104,8 +121,8 @@ export async function onRequest(context) {
       ok: true,
       code: 'OK',
       databaseConnected: true,
-      databaseName: identity?.database_name || null,
-      databaseUser: identity?.database_user || null,
+      databaseName: identity.database_name,
+      databaseUser: identity.database_user,
       mapaflexSchemaReadable: true,
       planCodes: rows.map(row => row.code)
     });
@@ -114,6 +131,8 @@ export async function onRequest(context) {
       ...base,
       code: 'SCHEMA_ACCESS_FAILED',
       databaseConnected: true,
+      databaseName: identity.database_name,
+      databaseUser: identity.database_user,
       mapaflexSchemaReadable: false
     }, 503);
   }
