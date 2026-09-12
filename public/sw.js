@@ -1,4 +1,4 @@
-const CACHE = 'mapaflex-ultimate-v2-responsive-20260912';
+const CACHE = 'mapaflex-ultimate-v3-mobile-tablet-20260912';
 const CORE = ['/', '/index.html', '/styles.css', '/app-core-1.js', '/app-core-2.js', '/app-core-3.js', '/app-media.js', '/app-ai-1.js', '/app-ai-2.js', '/app-ai-3.js', '/app-ai-4.js', '/app-export.js', '/pwa.js', '/manifest.webmanifest', '/icons/icon.svg'];
 
 self.addEventListener('install', event => {
