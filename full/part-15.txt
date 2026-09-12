@@ -1,0 +1,63 @@
+        id:a.id,name:a.name,type:a.type,kind:a.kind,size:a.size,createdAt:a.createdAt||'',storage:'indexeddb'
+      })):[];
+    });
+    return copy;
+  }
+  function saveLocal(){
+    try{localStorage.setItem('MapaFlex',JSON.stringify(lightweightStateForLocalStorage()));}
+    catch(e){console.warn('Não foi possível salvar metadados localmente:',e);const st=$('status');if(st)st.textContent='Não foi possível salvar os metadados do mapa localmente. Exporte um backup JSON.';}
+  }
+  function loadLocal(){
+    try{
+      const s=localStorage.getItem('MapaFlex');
+      state=s?normalizeState(JSON.parse(s)):normalizeState(JSON.parse(DEFAULT_STATE_JSON));
+    }catch(e){
+      console.warn('Mapa local inválido; restaurando o mapa padrão.',e);
+      state=normalizeState(JSON.parse(DEFAULT_STATE_JSON));
+    }
+    selected=state.nodes.find(n=>n.id==='root')?.id||state.nodes[0]?.id||null;
+  }
+  document.addEventListener('keydown',(e)=>{
+    if(e.key==='Escape' && $('imageModal').classList.contains('visible')){ e.preventDefault(); closeImageModal(); return; }
+    if(e.key==='Escape' && $('mediaModal').classList.contains('visible')){ e.preventDefault(); closeMediaModal(); return; }
+    if(e.key==='Escape' && $('aiModal').classList.contains('visible')){ e.preventDefault(); closeAiModal(); return; }
+    if(presentationMode){
+      if(e.key==='ArrowRight' || e.key==='PageDown' || e.key===' '){ e.preventDefault(); nextPresentationStep(); return; }
+      if(e.key==='ArrowLeft' || e.key==='PageUp'){ e.preventDefault(); prevPresentationStep(); return; }
+      if(e.key==='Escape'){ e.preventDefault(); stopPresentation(); return; }
+    }
+    if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+    if(e.key==='Tab'){e.preventDefault();addChild()}
+    else if(e.key==='Enter'){e.preventDefault();addSibling()}
+    else if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();removeSelected()}
+    else if(e.key==='F2'){e.preventDefault();beginInlineEdit(selected)}
+    else if(e.code==='Space'){e.preventDefault();toggleCollapse()}
+    else if(e.ctrlKey&&e.key.toLowerCase()==='s'){e.preventDefault();exportJson()}
+    else if(e.ctrlKey&&e.key.toLowerCase()==='z'){e.preventDefault();undo()}
+    else if(e.ctrlKey&&e.key.toLowerCase()==='y'){e.preventDefault();redo()}
+    else if(e.key==='Escape'){connectSource=null}
+  });
+  async function init(){
+    loadLocal();
+    try{
+      await openAttachmentDb();
+      const migration=await migrateEmbeddedAttachmentsToIndexedDB(state);
+      if(migration.migrated) saveLocal();
+      await cleanupOrphanedAttachments();
+      if(migration.migrated) $('status').textContent=`${migration.migrated} anexo(s) antigo(s) migrado(s) para IndexedDB`;
+    }catch(e){console.error('IndexedDB indisponível:',e);const st=$('status');if(st)st.textContent='IndexedDB indisponível: anexos não poderão ser salvos.';}
+    try{const p=localStorage.getItem('MapaFlexAIProvider')||'openai';$('aiProvider').value=p;$('aiModel').value=localStorage.getItem('MapaFlexAIModel:'+p)||(p==='openai'?'gpt-5.6-sol':'gemini-3.8-flash');$('aiApiKey').value=sessionStorage.getItem('MapaFlexAIKey:'+p)||'';}catch(e){}
+    loadAiMapPreferences();
+    $('theme').value=state.theme||'blue'; render(); setTimeout(()=>fit(),100);
+  }
+  init();
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(console.warn));
+}
+</script>
+</body>
+</html>
