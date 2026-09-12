@@ -3,9 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "echo Cloudflare Pages static build"
+    "build": "echo Cloudflare Pages static build",
+    "deploy": "wrangler pages deploy public --project-name=mapaflex-pwa --branch=main"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
   }
 }
