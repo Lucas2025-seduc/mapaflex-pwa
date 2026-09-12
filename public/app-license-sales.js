@@ -110,6 +110,8 @@
     const builtInBuy=root.querySelector('#mfBuyLicense');
     if(builtInBuy){
       standalone?.remove();
+      const planText=root.querySelector('.mf-plan-card small');
+      if(user&&planText) planText.textContent='Após a compra, você receberá um código de licença de uso único. Digite-o abaixo para ativar o Premium nesta conta.';
       if(user&&!redeemPanel){
         const panel=createRedeemPanel();
         const note=builtInBuy.nextElementSibling;
