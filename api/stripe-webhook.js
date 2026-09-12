@@ -7,13 +7,23 @@ function iso(v){const n=Number(v);return Number.isFinite(n)&&n>0?new Date(n*1000
 function licStatus(s){if(['active','trialing'].includes(s))return'active';if(['past_due','unpaid'].includes(s))return'grace';if(['paused','incomplete'].includes(s))return'suspended';return'expired';}
 
 async function upsertLicense(sql,{userId,customerId,subscriptionId,status='active',periodEnd=null,priceId=null}){
-  if(!userId||!subscriptionId)return;
+  if(!userId||!subscriptionId||!customerId)return;
   const [sub]=await sql`insert into mapaflex.subscriptions(auth_user_id,plan_code,stripe_customer_id,stripe_subscription_id,stripe_price_id,status,current_period_end,updated_at) values(${userId},'pro',${customerId},${subscriptionId},${priceId},${status},${periodEnd},now()) on conflict(stripe_subscription_id) do update set auth_user_id=excluded.auth_user_id,stripe_customer_id=excluded.stripe_customer_id,stripe_price_id=coalesce(excluded.stripe_price_id,mapaflex.subscriptions.stripe_price_id),status=excluded.status,current_period_end=coalesce(excluded.current_period_end,mapaflex.subscriptions.current_period_end),updated_at=now() returning id`;
   const ls=licStatus(status),grace=ls==='grace'?new Date(Date.now()+7*86400000).toISOString():null;
   let [lic]=await sql`select id from mapaflex.licenses where subscription_id=${sub.id} limit 1`;
   if(lic){[lic]=await sql`update mapaflex.licenses set auth_user_id=${userId},plan_code='pro',status=${ls},valid_until=${periodEnd},grace_until=${grace},updated_at=now() where id=${lic.id} returning id`;}
   else{[lic]=await sql`insert into mapaflex.licenses(auth_user_id,subscription_id,plan_code,status,max_devices,valid_until,grace_until) values(${userId},${sub.id},'pro',${ls},2,${periodEnd},${grace}) returning id`;}
   const enabled=ls==='active'||ls==='grace';for(const f of ['premium_ai','advanced_export'])await sql`insert into mapaflex.entitlements(license_id,feature_key,enabled) values(${lic.id},${f},${enabled}) on conflict(license_id,feature_key) do update set enabled=excluded.enabled,updated_at=now()`;
+}
+
+async function setCustomerLicenseState(sql,customerId,state){
+  if(!customerId)return;
+  if(state==='active'){
+    await sql`update mapaflex.licenses l set status='active',grace_until=null,updated_at=now() from mapaflex.subscriptions s where l.subscription_id=s.id and s.stripe_customer_id=${customerId}`;
+    await sql`update mapaflex.entitlements e set enabled=true,updated_at=now() from mapaflex.licenses l join mapaflex.subscriptions s on s.id=l.subscription_id where e.license_id=l.id and s.stripe_customer_id=${customerId} and e.feature_key in ('premium_ai','advanced_export')`;
+  }else if(state==='grace'){
+    await sql`update mapaflex.licenses l set status='grace',grace_until=now()+interval '7 days',updated_at=now() from mapaflex.subscriptions s where l.subscription_id=s.id and s.stripe_customer_id=${customerId}`;
+  }
 }
 
 module.exports=async function handler(req,res){
@@ -30,14 +40,18 @@ module.exports=async function handler(req,res){
       if(event.type==='checkout.session.completed'){
         const userId=String(o.client_reference_id||'');const customerId=typeof o.customer==='string'?o.customer:o.customer?.id;const subscriptionId=typeof o.subscription==='string'?o.subscription:o.subscription?.id;
         if(userId&&customerId)await sql`insert into mapaflex.billing_customers(auth_user_id,email,stripe_customer_id) values(${userId},${o.customer_details?.email||null},${customerId}) on conflict(auth_user_id) do update set stripe_customer_id=excluded.stripe_customer_id,email=coalesce(excluded.email,mapaflex.billing_customers.email),updated_at=now()`;
-        if(userId&&subscriptionId)await upsertLicense(sql,{userId,customerId,subscriptionId,status:'active'});
+        const paid=['paid','no_payment_required'].includes(String(o.payment_status||''));
+        if(userId&&subscriptionId&&paid)await upsertLicense(sql,{userId,customerId,subscriptionId,status:'active'});
       }
       if(event.type.startsWith('customer.subscription.')){
         const customerId=typeof o.customer==='string'?o.customer:o.customer?.id;const [c]=customerId?await sql`select auth_user_id from mapaflex.billing_customers where stripe_customer_id=${customerId} limit 1`:[];const item=o.items?.data?.[0];const priceId=typeof item?.price==='string'?item.price:item?.price?.id;const userId=String(o.metadata?.auth_user_id||c?.auth_user_id||'');
         await upsertLicense(sql,{userId,customerId,subscriptionId:o.id,status:o.status||'incomplete',periodEnd:iso(o.current_period_end||item?.current_period_end),priceId});
       }
       if(event.type==='invoice.payment_failed'){
-        const customerId=typeof o.customer==='string'?o.customer:o.customer?.id;if(customerId)await sql`update mapaflex.licenses l set status='grace',grace_until=now()+interval '7 days',updated_at=now() from mapaflex.subscriptions s where l.subscription_id=s.id and s.stripe_customer_id=${customerId}`;
+        const customerId=typeof o.customer==='string'?o.customer:o.customer?.id;await setCustomerLicenseState(sql,customerId,'grace');
+      }
+      if(event.type==='invoice.paid'){
+        const customerId=typeof o.customer==='string'?o.customer:o.customer?.id;await setCustomerLicenseState(sql,customerId,'active');
       }
       await sql`update mapaflex.webhook_events set processed=true,processed_at=now(),processing_error=null where id=${claim.id}`;
       return res.status(200).json({received:true});
