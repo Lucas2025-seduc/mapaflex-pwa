@@ -13,6 +13,16 @@ const licenseStatus = status => {
   return 'expired';
 };
 
+async function secretValue(env, name) {
+  const binding = env?.[name];
+  if (!binding) return '';
+  if (typeof binding === 'string') return binding;
+  if (typeof binding.get === 'function') {
+    try { return String(await binding.get() || ''); } catch { return ''; }
+  }
+  return '';
+}
+
 function constantTimeEqual(a, b) {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -128,7 +138,9 @@ export async function onRequest(context) {
   if (request.method !== 'POST') return reply(405, { error: 'Método não permitido.' });
 
   try {
-    if (!env.DATABASE_URL || !env.STRIPE_WEBHOOK_SECRET) {
+    const databaseUrl = await secretValue(env, 'DATABASE_URL');
+    const stripeWebhookSecret = await secretValue(env, 'STRIPE_WEBHOOK_SECRET');
+    if (!databaseUrl || !stripeWebhookSecret) {
       return reply(503, { error: 'Backend de cobrança não configurado.' });
     }
 
@@ -136,12 +148,12 @@ export async function onRequest(context) {
     if (!body || body.length > 1024 * 1024) return reply(413, { error: 'Payload inválido ou muito grande.' });
 
     const signature = request.headers.get('stripe-signature');
-    if (!await verifyStripeSignature(body, signature, env.STRIPE_WEBHOOK_SECRET)) {
+    if (!await verifyStripeSignature(body, signature, stripeWebhookSecret)) {
       return reply(400, { error: 'Assinatura inválida.' });
     }
 
     const event = JSON.parse(body);
-    const sql = neon(env.DATABASE_URL);
+    const sql = neon(databaseUrl);
     const payloadHash = await sha256(body);
 
     const [claim] = await sql`
