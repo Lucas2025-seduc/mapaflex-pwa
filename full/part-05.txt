@@ -1,0 +1,201 @@
+        if(parts[0]==='embed' || parts[0]==='shorts') return parts[1] || '';
+      }
+    }catch(e){}
+    return '';
+  }
+  function getVimeoId(url){
+    try{
+      const u=new URL(url);
+      if(!/vimeo\.com$/i.test(u.hostname) && !/www\.vimeo\.com$/i.test(u.hostname)) return '';
+      const parts=u.pathname.split('/').filter(Boolean);
+      return parts.find(p=>/^\d+$/.test(p)) || '';
+    }catch(e){}
+    return '';
+  }
+  function getVideoEmbedInfo(url){
+    const safe=normalizeUrl(url);
+    if(!safe) return null;
+    const yt=getYouTubeId(safe);
+    if(yt) return {type:'iframe', src:`https://www.youtube.com/embed/${yt}`, label:'Vídeo do YouTube'};
+    const vimeo=getVimeoId(safe);
+    if(vimeo) return {type:'iframe', src:`https://player.vimeo.com/video/${vimeo}`, label:'Vídeo do Vimeo'};
+    if(isDirectVideoUrl(safe)) return {type:'video', src:safe, label:'Vídeo do balão'};
+    return null;
+  }
+  function looksLikeUrlText(value){
+    const s=String(value||'').trim();
+    return /^(?:https?:\/\/|www\.)/i.test(s) || /(?:youtube\.com|youtu\.be|vimeo\.com)/i.test(s);
+  }
+  function fallbackLinkTitle(url){
+    if(/(?:youtube\.com|youtu\.be)/i.test(url||'')) return 'Vídeo do YouTube';
+    if(/vimeo\.com/i.test(url||'')) return 'Vídeo do Vimeo';
+    if(isDirectVideoUrl(url||'')) return 'Vídeo';
+    return 'Abrir link';
+  }
+  function displayNodeText(n){
+    if(!n) return 'Novo tópico';
+    const raw=String(n.text||'').trim();
+    if(n.link && looksLikeUrlText(raw)) return String(n.linkTitle||'').trim() || fallbackLinkTitle(n.link);
+    return raw || (n.link ? (String(n.linkTitle||'').trim() || fallbackLinkTitle(n.link)) : 'Novo tópico');
+  }
+  function nodePathText(node){
+    if(!node) return '';
+    return ancestorIds(node.id).map(id=>nodeById(id)?.text || '').filter(Boolean).join(' › ');
+  }
+  function updatePresentationMedia(){
+    const panel=$('presentationMedia');
+    const body=$('presentationMediaBody');
+    const caption=$('presentationMediaCaption');
+    const stepLabel=$('presentationStepLabel');
+    const path=$('presentationPath');
+    panel?.classList.remove('visible');
+    if(!presentationMode){
+      if(body) body.innerHTML='';
+      if(caption) caption.textContent='';
+      if(stepLabel) stepLabel.textContent='Fase atual';
+      if(path) path.textContent='';
+      return;
+    }
+    const node=currentPresentationNode();
+    if(!node) return;
+    const order=normalizePresentOrder(node.presentOrder);
+    if(stepLabel) stepLabel.textContent = `Fase ${presentationIndex+1} de ${presentationSequence.length}` + (order!=='' ? ` • Ordem ${order}` : '');
+    if(path) path.textContent = nodePathText(node) || node.text || '';
+    if(!body || !caption || !panel) return;
+    body.innerHTML='';
+    const embed=getVideoEmbedInfo(node.link);
+    if(embed){
+      panel.classList.add('visible');
+      caption.textContent='Vídeo do balão atual.';
+      if(embed.type==='iframe'){
+        const frame=document.createElement('iframe');
+        frame.src=embed.src;
+        frame.title=node.text || embed.label;
+        frame.allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+        frame.allowFullscreen=true;
+        frame.referrerPolicy='strict-origin-when-cross-origin';
+        body.appendChild(frame);
+      }else{
+        const video=document.createElement('video');
+        video.src=embed.src;
+        video.controls=true;
+        video.autoplay=true;
+        video.playsInline=true;
+        body.appendChild(video);
+      }
+      return;
+    }
+    if(node.image){
+      panel.classList.add('visible');
+      const img=document.createElement('img');
+      img.src=node.image;
+      img.alt=node.text || 'Imagem do balão';
+      img.addEventListener('click',()=>openImageModal(node.image,node.text || 'Imagem do balão'));
+      img.style.cursor='zoom-in';
+      body.appendChild(img);
+      caption.textContent='Imagem do balão atual • clique para ampliar.';
+      return;
+    }
+    caption.textContent='';
+  }
+  async function fetchVideoTitle(url){
+    try{
+      let endpoint='';
+      if(/(?:youtube\.com|youtu\.be)/i.test(url)){
+        endpoint='https://www.youtube.com/oembed?format=json&url='+encodeURIComponent(url);
+      }else if(/vimeo\.com/i.test(url)){
+        endpoint='https://vimeo.com/api/oembed.json?url='+encodeURIComponent(url);
+      }
+      if(!endpoint) return '';
+      const ctrl=new AbortController();
+      const timer=setTimeout(()=>ctrl.abort(),4500);
+      const res=await fetch(endpoint,{signal:ctrl.signal});
+      clearTimeout(timer);
+      if(!res.ok) return '';
+      const data=await res.json();
+      return (data && data.title ? String(data.title).trim() : '');
+    }catch(e){ return ''; }
+  }
+  async function setNodeLink(n, rawUrl){
+    if(!n) return;
+    const url=normalizeUrl(rawUrl);
+    if(rawUrl && !url){ alert('Link inválido. Use um endereço como https://...'); return; }
+    pushHistory();
+    n.link=url;
+    if(!url){ render(); saveLocal(); return; }
+    let title='';
+    if(isVideoUrl(url)){
+      $('status').textContent='Buscando o título do vídeo...';
+      title=await fetchVideoTitle(url);
+    }
+    if(!title){
+      const currentTitle=looksLikeUrlText(n.text) ? '' : (n.text==='Novo tópico' ? '' : n.text);
+      const typed=prompt(isVideoUrl(url) ? 'Não consegui obter o título automaticamente. Digite o título do vídeo:' : 'Digite o título que deve aparecer no balão:',currentTitle);
+      title=(typed||'').trim();
+    }
+    if(!title && isVideoUrl(url)) title=fallbackLinkTitle(url);
+    if(title){ n.text=title; n.linkTitle=title; }
+    resolveNodeOverlaps({padding:28,iterations:20});
+    render(); saveLocal();
+  }
+  function selectNodeWithoutRender(id){
+    selected=id;
+    nodesG.querySelectorAll('.node').forEach(el=>el.classList.toggle('selected',el.dataset.id===id));
+    updateInspector();
+  }
+  function normalizePresentOrder(value){
+    const n=Number(value);
+    return Number.isFinite(n) && n>0 ? Math.floor(n) : '';
+  }
+  function presentationNodesSorted(){
+    return state.nodes.filter(n=>normalizePresentOrder(n.presentOrder)!=='').sort((a,b)=>normalizePresentOrder(a.presentOrder)-normalizePresentOrder(b.presentOrder) || String(a.text||'').localeCompare(String(b.text||''),'pt-BR'));
+  }
+  function hierarchySequenceFrom(id, acc=[]){
+    const n=nodeById(id);
+    if(!n) return acc;
+    acc.push(n);
+    const kids=allChildren(id).slice().sort((a,b)=>{
+      const oa=normalizePresentOrder(a.presentOrder), ob=normalizePresentOrder(b.presentOrder);
+      if(oa!=='' && ob!=='' && oa!==ob) return oa-ob;
+      if(oa!=='' && ob==='') return -1;
+      if(oa==='' && ob!=='') return 1;
+      return a.y-b.y || a.x-b.x || a.id.localeCompare(b.id);
+    });
+    kids.forEach(c=>hierarchySequenceFrom(c.id, acc));
+    return acc;
+  }
+  function getPresentationSequence(){
+    const numbered=presentationNodesSorted();
+    return numbered.length ? numbered : hierarchySequenceFrom('root', []);
+  }
+  function ancestorIds(id){
+    const ids=[]; let cur=nodeById(id);
+    while(cur){ ids.unshift(cur.id); cur=cur.parent ? nodeById(cur.parent) : null; }
+    return ids;
+  }
+  function descendantIds(id,set=new Set()){
+    set.add(id);
+    allChildren(id).forEach(c=>descendantIds(c.id,set));
+    return set;
+  }
+  function currentPresentationNode(){ return presentationMode ? presentationSequence[presentationIndex] || null : null; }
+  function applyPresentationDecorations(){
+    const panel=$('presentationPanel');
+    panel?.classList.toggle('visible', presentationMode);
+    document.body.classList.toggle('presenting', presentationMode);
+    if(!presentationMode){
+      nodesG.querySelectorAll('.node').forEach(el=>{el.style.opacity=''; el.style.filter='';});
+      edgesG.querySelectorAll('.edge').forEach(el=>el.style.opacity='');
+      labelsG.querySelectorAll('.edgeLabel').forEach(el=>el.style.opacity='');
+      updatePresentationMedia();
+      return;
+    }
+    const node=currentPresentationNode();
+    if(!node) return;
+    const ancestors=new Set(ancestorIds(node.id));
+    const descendants=descendantIds(node.id);
+    const focusSet=new Set([...ancestors, ...descendants]);
+    nodesG.querySelectorAll('.node').forEach(el=>{
+      const id=el.dataset.id;
+      const isCurrent=id===node.id;
+      const isAncestor=ancestors.has(id);
