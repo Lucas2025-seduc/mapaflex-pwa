@@ -22,7 +22,7 @@
       .mf-buy-whatsapp{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;border:0;border-radius:10px;padding:11px 12px;background:#16a34a;color:#fff;font-weight:800;cursor:pointer}
       .mf-buy-whatsapp:hover{filter:brightness(.96)}
       .mf-buy-contact{font-size:11px;color:#166534;text-align:center;font-weight:700}
-      .mf-redeem{border-top:1px solid #bbf7d0;margin-top:4px;padding-top:10px;display:grid;gap:7px}
+      .mf-redeem{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:12px;padding:11px;display:grid;gap:7px;margin-top:8px}
       .mf-redeem-title{font-size:12px;font-weight:800;color:#166534}
       .mf-redeem-row{display:flex;gap:7px;flex-wrap:wrap}
       .mf-redeem-input{flex:1;min-width:210px;border:1px solid #86efac;border-radius:9px;padding:10px;font:600 12px ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;background:#fff;color:#0f172a}
@@ -78,6 +78,19 @@
     }
   }
 
+  function createRedeemPanel(){
+    const panel=document.createElement('div');
+    panel.id='mfRedeemLicenseSales';
+    panel.className='mf-redeem';
+    panel.innerHTML='<div class="mf-redeem-title">Já tem um código? Ative aqui</div><div class="mf-redeem-row"><input id="mfLicenseCodeInput" class="mf-redeem-input" autocomplete="off" spellcheck="false" maxlength="64" placeholder="MF-XXXX-XXXX-…"><button id="mfRedeemLicenseBtn" class="mf-redeem-btn" type="button">Ativar código</button></div><div id="mfRedeemLicenseStatus" class="mf-redeem-status">O código é de uso único e fica vinculado à sua conta depois da ativação.</div>';
+    const input=panel.querySelector('#mfLicenseCodeInput');
+    const btn=panel.querySelector('#mfRedeemLicenseBtn');
+    const statusEl=panel.querySelector('#mfRedeemLicenseStatus');
+    input.addEventListener('input',()=>{input.value=input.value.toUpperCase().replace(/\s+/g,'');});
+    btn.addEventListener('click',()=>redeem(input.value,btn,statusEl));
+    return panel;
+  }
+
   function enhanceLicenseModal(){
     scheduled=false;
     installStyle();
@@ -90,9 +103,21 @@
     const user=billing.user;
     const active=billing.plan==='pro'&&['active','grace'].includes(String(billing.licenseStatus||''));
     const standalone=root.querySelector('#mfBuyLicenseSales');
+    const redeemPanel=root.querySelector('#mfRedeemLicenseSales');
 
-    if(active){standalone?.remove();return;}
-    if(root.querySelector('#mfBuyLicense')){standalone?.remove();return;}
+    if(active){standalone?.remove();redeemPanel?.remove();return;}
+
+    const builtInBuy=root.querySelector('#mfBuyLicense');
+    if(builtInBuy){
+      standalone?.remove();
+      if(user&&!redeemPanel){
+        const panel=createRedeemPanel();
+        const note=builtInBuy.nextElementSibling;
+        if(note) note.insertAdjacentElement('afterend',panel); else builtInBuy.insertAdjacentElement('afterend',panel);
+      }
+      return;
+    }
+
     if(standalone) return;
 
     const userId=String(user?.id||'');
@@ -107,56 +132,27 @@
     const box=document.createElement('div');
     box.id='mfBuyLicenseSales';
     box.className='mf-buy-box';
-    box.innerHTML=`
-      <div class="mf-buy-title">Adquirir licença MapaFlex Pro</div>
-      <div class="mf-buy-text">${user?'Após confirmar a compra, você receberá um código de licença de uso único. Digite-o abaixo para vincular o Premium à sua conta.':'Fale com o responsável pelo WhatsApp. Para ativar a licença depois, crie ou entre em uma conta no MapaFlex.'}</div>
-      <a class="mf-buy-whatsapp" target="_blank" rel="noopener noreferrer" href="https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}">💬 Comprar pelo WhatsApp</a>
-      <div class="mf-buy-contact">Contato oficial: ${esc(WHATSAPP_LABEL)}</div>
-      ${user?`<div class="mf-redeem"><div class="mf-redeem-title">Já tem um código? Ative aqui</div><div class="mf-redeem-row"><input id="mfLicenseCodeInput" class="mf-redeem-input" autocomplete="off" spellcheck="false" maxlength="64" placeholder="MF-XXXX-XXXX-…"><button id="mfRedeemLicenseBtn" class="mf-redeem-btn" type="button">Ativar código</button></div><div id="mfRedeemLicenseStatus" class="mf-redeem-status">O código é de uso único e fica vinculado à sua conta depois da ativação.</div></div>`:''}`;
+    box.innerHTML=`<div class="mf-buy-title">Adquirir licença MapaFlex Pro</div><div class="mf-buy-text">${user?'Após confirmar a compra, você receberá um código de licença de uso único para vincular o Premium à sua conta.':'Fale com o responsável pelo WhatsApp. Para ativar a licença depois, crie ou entre em uma conta no MapaFlex.'}</div><a class="mf-buy-whatsapp" target="_blank" rel="noopener noreferrer" href="https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}">💬 Comprar pelo WhatsApp</a><div class="mf-buy-contact">Contato oficial: ${esc(WHATSAPP_LABEL)}</div>`;
+
+    if(user) box.appendChild(createRedeemPanel());
 
     const accountBox=root.querySelector('.mf-account-box');
     const signOut=root.querySelector('#mfSignOut');
     const authForm=root.querySelector('#mfAuthForm');
-    if(accountBox){
-      if(signOut) accountBox.insertBefore(box,signOut); else accountBox.appendChild(box);
-    }else if(authForm){
-      authForm.insertAdjacentElement('afterend',box);
-    }else{
-      root.appendChild(box);
-    }
-
-    const input=box.querySelector('#mfLicenseCodeInput');
-    const btn=box.querySelector('#mfRedeemLicenseBtn');
-    const statusEl=box.querySelector('#mfRedeemLicenseStatus');
-    if(input) input.addEventListener('input',()=>{input.value=input.value.toUpperCase().replace(/\s+/g,'');});
-    if(btn&&input&&statusEl) btn.addEventListener('click',()=>redeem(input.value,btn,statusEl));
+    if(accountBox){if(signOut) accountBox.insertBefore(box,signOut); else accountBox.appendChild(box);}else if(authForm){authForm.insertAdjacentElement('afterend',box);}else{root.appendChild(box);}
   }
 
-  function scheduleEnhance(){
-    if(scheduled) return;
-    scheduled=true;
-    queueMicrotask(enhanceLicenseModal);
-  }
+  function scheduleEnhance(){if(scheduled)return;scheduled=true;queueMicrotask(enhanceLicenseModal);}
 
   const start=()=>{
     hardenAiUi();
     const modal=document.getElementById('mfLicenseModal');
-    if(modal){
-      const observer=new MutationObserver(scheduleEnhance);
-      observer.observe(modal,{childList:true,subtree:true});
-    }
+    if(modal){const observer=new MutationObserver(scheduleEnhance);observer.observe(modal,{childList:true,subtree:true});}
     const aiStatus=document.getElementById('aiStatus');
-    if(aiStatus){
-      const aiObserver=new MutationObserver(hardenAiUi);
-      aiObserver.observe(aiStatus,{childList:true,subtree:true,characterData:true});
-    }
+    if(aiStatus){const aiObserver=new MutationObserver(hardenAiUi);aiObserver.observe(aiStatus,{childList:true,subtree:true,characterData:true});}
     scheduleEnhance();
   };
 
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(start,0),{once:true});
-  else setTimeout(start,0);
-
-  document.addEventListener('click',e=>{
-    if(e.target instanceof Element && e.target.closest('#mfAccountBtn,#mfRefreshAccess,.mf-tab')) setTimeout(scheduleEnhance,30);
-  });
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(start,0),{once:true}); else setTimeout(start,0);
+  document.addEventListener('click',e=>{if(e.target instanceof Element&&e.target.closest('#mfAccountBtn,#mfRefreshAccess,.mf-tab'))setTimeout(scheduleEnhance,30);});
 })();
