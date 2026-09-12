@@ -46,6 +46,7 @@ export async function onRequest(context) {
       else if (!body.databaseUrlPresent) diagnosticStatus = 409;
       else if (!body.stripeWebhookSecretPresent) diagnosticStatus = 412;
       else if (body.code === 'DB_CONNECTION_FAILED') diagnosticStatus = 424;
+      else if (body.code === 'MAPAFLEX_SCHEMA_MISSING') diagnosticStatus = 423;
       else if (body.code === 'SCHEMA_ACCESS_FAILED') diagnosticStatus = 422;
       return new Response(JSON.stringify({ code: body.code, ok: body.ok }), { status: diagnosticStatus, headers: jsonHeaders });
     }
@@ -85,12 +86,26 @@ export async function onRequest(context) {
   }
 
   try {
+    const [identity] = await sql`select current_database() as database_name, current_user as database_user, to_regclass('mapaflex.plans')::text as plans_table`;
+    if (!identity?.plans_table) {
+      return respond({
+        ...base,
+        code: 'MAPAFLEX_SCHEMA_MISSING',
+        databaseConnected: true,
+        databaseName: identity?.database_name || null,
+        databaseUser: identity?.database_user || null,
+        mapaflexSchemaReadable: false
+      }, 503);
+    }
+
     const rows = await sql`select code from mapaflex.plans order by code limit 5`;
     return respond({
       ...base,
       ok: true,
       code: 'OK',
       databaseConnected: true,
+      databaseName: identity?.database_name || null,
+      databaseUser: identity?.database_user || null,
       mapaflexSchemaReadable: true,
       planCodes: rows.map(row => row.code)
     });
