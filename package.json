@@ -2,9 +2,10 @@
   "name": "mapaflex-pwa",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "build": "echo Cloudflare Worker static build",
-    "deploy": "wrangler deploy"
+    "build": "echo Vercel static build ready",
+    "deploy:cloudflare": "wrangler deploy"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.0"
