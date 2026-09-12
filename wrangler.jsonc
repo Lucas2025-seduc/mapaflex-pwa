@@ -14,11 +14,6 @@
       "binding": "DATABASE_URL",
       "store_id": "e3beb5f136224e4b911a88def71ebe7a",
       "secret_name": "mapaflex_database_url"
-    },
-    {
-      "binding": "STRIPE_WEBHOOK_SECRET",
-      "store_id": "e3beb5f136224e4b911a88def71ebe7a",
-      "secret_name": "mapaflex_stripe_webhook_secret"
     }
   ]
 }
