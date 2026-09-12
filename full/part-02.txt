@@ -1,0 +1,134 @@
+          <g id="nodes"></g>
+        </g>
+      </svg>
+      <div class="overlay">
+        <button class="btn iconbtn" id="zoomOut">−</button>
+        <div class="zoomlabel" id="zoomLabel">100%</div>
+        <button class="btn iconbtn" id="zoomIn">＋</button>
+        <button class="btn" id="center">◎</button>
+      </div>
+      <div class="status" id="status">0 nós</div>
+      <div class="nodeToolbar" id="nodeToolbar">
+        <button id="tbBold" title="Negrito"><b>B</b></button>
+        <button id="tbItalic" title="Itálico"><i>I</i></button>
+        <button id="tbColor" title="Cor do balão">🎨</button>
+        <button id="tbLink" title="Adicionar link">🔗</button>
+        <button id="tbImage" title="Adicionar imagem">🖼</button>
+        <button id="tbRemoveImage" title="Remover imagem">✕ Img</button>
+        <button id="tbDone" title="Concluir edição">✓</button>
+      </div>
+      <input type="file" id="imageInput" accept="image/*" hidden>
+      <div class="contextmenu" id="contextMenu">
+        <button id="ctxEdit">✎ Editar</button>
+        <button id="ctxChild">＋ Adicionar filho</button>
+        <button id="ctxSibling">＋ Adicionar irmão</button>
+        <button id="ctxConnect">↗ Criar relação</button>
+        <button id="ctxDelete">🗑 Excluir</button>
+      </div>
+      <div class="presentationPanel" id="presentationPanel">
+        <button class="btn iconbtn" id="presentPrev" title="Anterior">←</button>
+        <div class="presentationCounter" id="presentationCounter">0 / 0</div>
+        <div class="presentationTitle" id="presentationTitle">Apresentação</div>
+        <button class="btn iconbtn" id="presentNext" title="Próximo">→</button>
+        <button class="btn" id="presentExit" title="Sair da apresentação">✕ Sair</button>
+      </div>
+      <div class="presentationMedia" id="presentationMedia">
+        <div class="presentationMediaHead">
+          <div class="presentationStepLabel" id="presentationStepLabel">Fase atual</div>
+          <div class="presentationPath" id="presentationPath">Tema central</div>
+        </div>
+        <div class="presentationMediaBody" id="presentationMediaBody">
+          <div class="presentationMediaEmpty">Este balão não possui imagem nem vídeo.</div>
+        </div>
+        <div class="presentationMediaCaption" id="presentationMediaCaption">Sem mídia associada.</div>
+      </div>
+      <div class="imageModal" id="imageModal" aria-hidden="true">
+        <div class="imageModalCard">
+          <div class="imageModalHead">
+            <div>
+              <div class="imageModalTitle" id="imageModalTitle">Imagem do balão</div>
+              <div class="imageHint">Use os botões de zoom, a roda do mouse ou arraste para ver detalhes. Pressione Esc para fechar.</div>
+            </div>
+            <div class="imageModalToolbar">
+              <button class="btn iconbtn" id="imageZoomOut" title="Diminuir zoom">−</button>
+              <div class="imageZoomLabel" id="imageZoomLabel">100%</div>
+              <button class="btn iconbtn" id="imageZoomIn" title="Aumentar zoom">＋</button>
+              <button class="btn" id="imageZoomReset" title="Ajustar a imagem à tela">Ajustar</button>
+              <button class="btn" id="imageModalClose">Fechar</button>
+            </div>
+          </div>
+          <div class="imageModalBody">
+            <div class="imageModalViewport" id="imageModalViewport">
+              <div class="imageModalStage" id="imageModalStage">
+                <img id="imageModalImg" alt="Imagem ampliada do balão">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mediaModal" id="mediaModal" aria-hidden="true">
+        <div class="mediaCard">
+          <div class="mediaHead">
+            <div><b id="mediaModalTitle">Arquivo</b><div class="help" id="mediaModalMeta"></div></div>
+            <div style="display:flex;gap:6px"><button class="btn" id="mediaDownload">⬇ Salvar arquivo</button><button class="btn" id="mediaModalClose">Fechar</button></div>
+          </div>
+          <div class="mediaBody" id="mediaModalBody"></div>
+        </div>
+      </div>
+      <div class="aiModal" id="aiModal" aria-hidden="true">
+        <div class="aiCard">
+          <div class="aiHead"><div><b id="aiModalTitle">Resposta da IA</b><div class="help" id="aiModalSubtitle"></div></div><button class="btn" id="aiModalClose">Fechar</button></div>
+          <div class="aiBody"><div class="aiResult" id="aiResult"></div></div>
+          <div class="aiActions">
+            <button class="btn" id="aiSaveNote">Salvar na nota</button>
+            <button class="btn" id="aiCreateChild">Criar balão filho</button>
+            <button class="btn primary" id="aiApplyMap" style="display:none">Aplicar mapa</button>
+            <button class="btn primary" id="aiApplyRelations" style="display:none">Aplicar relações</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="inspector">
+      <div class="section">
+        <h3>Nó selecionado</h3>
+        <div id="noSelection" class="empty">Selecione um nó para editar suas propriedades.</div>
+        <div id="nodeForm" style="display:none">
+          <div class="field"><label>Título</label><input id="nodeTextInput"></div>
+          <div class="field"><label>Tipo</label>
+            <select id="nodeShape">
+              <option value="rounded">Cartão arredondado</option>
+              <option value="pill">Pílula</option>
+              <option value="box">Caixa técnica</option>
+            </select>
+          </div>
+          <div class="field"><label>Cor</label><div class="colorrow" id="colors"></div></div>
+          <div class="field"><label>Nota</label><textarea id="nodeNote" placeholder="Observações, fonte, evidência ou detalhes..."></textarea></div>
+          <div class="field"><label>Link</label><input id="nodeLink" placeholder="https://..."></div>
+          <div class="field"><label>Ordem da apresentação</label><input id="nodePresentOrder" type="number" min="1" step="1" placeholder="Ex.: 1"><div class="help">Use números para definir a sequência de foco no modo apresentação.</div></div>
+          <div class="field"><label>Imagem</label><div style="display:flex;gap:6px"><button class="btn" id="inspectorImage">🖼 Inserir</button><button class="btn" id="inspectorRemoveImage">✕ Remover</button></div></div>
+          <div class="field"><label>Arquivos e áudio</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn" id="attachFile">📎 PDF / PowerPoint / Áudio</button>
+              <button class="btn" id="recordAudio">🎙 Gravar</button>
+              <button class="btn danger" id="stopRecording" style="display:none">■ Parar</button>
+            </div>
+            <div id="recordStatus" class="help"></div>
+            <div id="attachmentList" class="attachmentList"></div>
+            <div class="help">PDF abre no visualizador; PowerPoint pode ser salvo/aberto externamente; áudio pode ser reproduzido. Os arquivos são armazenados localmente no <b>IndexedDB</b>; ao exportar o backup JSON, os anexos são incorporados ao backup para transporte.</div>
+          </div>
+          <div class="hr"></div>
+          <div class="field"><label>Relações</label><button class="btn" id="makeRelation">↗ Conectar este nó a outro</button></div>
+        </div>
+      </div>
+      <div class="section">
+        <h3>Mapa</h3>
+        <div class="field"><label>Modo atual</label><div id="modeDisplay" class="help">Mapa mental</div></div>
+        <div class="field"><label>Salvar automaticamente</label><div class="help">O mapa é guardado neste navegador enquanto você trabalha.</div></div>
+      </div>
+      <div class="section">
+        <h3>Assistente de IA</h3>
+        <div class="field"><label>Provedor</label><select id="aiProvider"><option value="openai">OpenAI / ChatGPT API</option><option value="gemini">Google Gemini API</option></select></div>
+        <div class="field"><label>Chave da API</label><input id="aiApiKey" type="password" autocomplete="off" placeholder="Cole a chave aqui"><div class="help">A chave fica somente nesta sessão do navegador e não é incluída no mapa ou no JSON.</div></div>
+        <div class="field"><label>Modelo</label><input id="aiModel" value="gpt-5.6-sol" placeholder="Modelo da API"></div>
+        <div style="display:flex;gap:6px;margin-bottom:8px"><button class="btn" id="aiTest">✓ Testar chave e modelo</button><button class="btn" id="aiClearKey">Limpar chave</button></div>
