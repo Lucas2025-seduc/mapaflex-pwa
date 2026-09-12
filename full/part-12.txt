@@ -1,0 +1,152 @@
+  $('zoomIn').onclick=()=>setZoom(zoom*1.15); $('zoomOut').onclick=()=>setZoom(zoom*.87); $('center').onclick=()=>{pan={x:0,y:0};applyViewport()};
+  function fit(){
+    const vis=visibleNodes(); if(!vis.length)return;
+    const xs=vis.map(n=>n.x), ys=vis.map(n=>n.y);
+    const minX=Math.min(...xs)-180,maxX=Math.max(...xs)+180,minY=Math.min(...ys)-100,maxY=Math.max(...ys)+100;
+    const w=Math.max(400,maxX-minX),h=Math.max(300,maxY-minY);
+    zoom=Math.min(svg.clientWidth/w,svg.clientHeight/h,1.4); pan={x:-(minX+maxX)/2*zoom,y:-(minY+maxY)/2*zoom}; render();
+  }
+  $('fit').onclick=fit;
+  $('focus').onclick=()=>{const n=nodeById(selected);if(!n)return;pan={x:-n.x*zoom,y:-n.y*zoom};applyViewport()};
+  $('toggleGrid').onclick=()=>{grid=!grid;canvas.style.background=grid?'radial-gradient(circle at 20px 20px,#e5e7eb 1px,transparent 1.5px) 0 0/20px 20px,#fbfcfe':'#fbfcfe'};
+  $('presentation').onclick=()=> presentationMode ? stopPresentation() : startPresentation();
+  $('presentPrev').onclick=prevPresentationStep;
+  $('presentNext').onclick=nextPresentationStep;
+  $('presentExit').onclick=stopPresentation;
+  $('imageModalClose').onclick=closeImageModal;
+  $('imageZoomIn').onclick=()=>setImageZoom(imageZoom*1.2);
+  $('imageZoomOut').onclick=()=>setImageZoom(imageZoom/1.2);
+  $('imageZoomReset').onclick=resetImageZoom;
+  $('imageModal').addEventListener('click',(ev)=>{ if(ev.target.id==='imageModal') closeImageModal(); });
+  $('imageModalViewport').addEventListener('wheel',(ev)=>{ if(!$('imageModal').classList.contains('visible')) return; ev.preventDefault(); setImageZoom(imageZoom * (ev.deltaY<0 ? 1.1 : 0.9)); }, {passive:false});
+  $('imageModalViewport').addEventListener('mousedown',(ev)=>{ if(imageZoom<=1 || ev.button!==0) return; ev.preventDefault(); const vp=$('imageModalViewport'); imageDragState={x:ev.clientX,y:ev.clientY,left:vp.scrollLeft,top:vp.scrollTop}; vp.classList.add('grabbing'); });
+  window.addEventListener('mousemove',(ev)=>{ if(!imageDragState) return; const vp=$('imageModalViewport'); vp.scrollLeft=imageDragState.left-(ev.clientX-imageDragState.x); vp.scrollTop=imageDragState.top-(ev.clientY-imageDragState.y); });
+  window.addEventListener('mouseup',()=>{ imageDragState=null; $('imageModalViewport').classList.remove('grabbing'); });
+  $('aiProvider').addEventListener('change',()=>{const p=$('aiProvider').value;$('aiModel').value=localStorage.getItem('MapaFlexAIModel:'+p)||(p==='openai'?'gpt-5.6-sol':'gemini-3.8-flash');$('aiApiKey').value=sessionStorage.getItem('MapaFlexAIKey:'+p)||'';setAiStatus('Não testado.');});
+  $('aiAction').addEventListener('change',updateAiMapOptionsVisibility);
+  $('aiMapDepth').addEventListener('change',()=>{saveAiMapPreferences();updateAiMapDepthHelp();});
+  $('aiEducationLevel').addEventListener('change',saveAiMapPreferences);
+  $('aiMapExamples').addEventListener('change',saveAiMapPreferences);
+  $('aiApiKey').addEventListener('change',saveAiSessionConfig);$('aiModel').addEventListener('change',saveAiSessionConfig);
+  $('aiTest').onclick=testAiConnection;$('aiRun').onclick=runAiAction;
+  $('aiClearKey').onclick=()=>{const p=$('aiProvider').value;$('aiApiKey').value='';sessionStorage.removeItem('MapaFlexAIKey:'+p);setAiStatus('Chave removida desta sessão.');};
+  $('aiModalClose').onclick=closeAiModal;$('aiModal').addEventListener('click',e=>{if(e.target.id==='aiModal')closeAiModal();});
+  $('aiSaveNote').onclick=()=>{const n=nodeById(selected);if(!n||!lastAiResult)return;pushHistory();n.note=(n.note? n.note+'\n\n':'')+'IA:\n'+lastAiResult;updateInspector();saveLocal();closeAiModal();};
+  $('aiCreateChild').onclick=()=>{const p=nodeById(selected);if(!p||!lastAiResult)return;pushHistory();const title=(lastAiResult.split(/\n+/)[0]||'Resposta da IA').replace(/^[#*\-\d. )]+/,'').slice(0,100);const n=makeNode(title,p.id,p.x+220,p.y+100);n.note=lastAiResult;state.nodes.push(n);selected=n.id;layoutTree();saveLocal();closeAiModal();};
+  $('aiApplyMap').onclick=()=>applyAiMap(lastAiStructured);$('aiApplyRelations').onclick=applyAiRelationsOrExpand;
+  function layoutRadial(){
+    pushHistory();
+    const root=nodeById('root'); root.x=0;root.y=0;
+    const kids=allChildren('root'), r1=280;
+    kids.forEach((n,i)=>{const a=-Math.PI/2 + i*(2*Math.PI/Math.max(1,kids.length));n.x=Math.cos(a)*r1;n.y=Math.sin(a)*r1;layoutChildren(n, a, 155)});
+    render();saveLocal();fit();
+  }
+  function layoutChildren(parent,angle,dist){
+    const kids=allChildren(parent.id); if(!kids.length)return;
+    const spread=Math.min(1.15,Math.PI*.75/Math.max(1,kids.length));
+    kids.forEach((n,i)=>{const a=angle+(i-(kids.length-1)/2)*spread;n.x=parent.x+Math.cos(a)*dist;n.y=parent.y+Math.sin(a)*dist;layoutChildren(n,a,Math.max(120,dist-15))});
+  }
+  function getNodeDepth(id){
+    let depth=0, cur=nodeById(id), seen=new Set();
+    while(cur && cur.parent && !seen.has(cur.id)){
+      seen.add(cur.id);
+      depth++;
+      cur=nodeById(cur.parent);
+    }
+    return depth;
+  }
+  function collectSubtreeIds(id,set=new Set()){
+    set.add(id);
+    allChildren(id).forEach(c=>collectSubtreeIds(c.id,set));
+    return set;
+  }
+  function moveSubtree(id,dx=0,dy=0){
+    const ids=collectSubtreeIds(id,new Set());
+    state.nodes.forEach(n=>{ if(ids.has(n.id)){ n.x+=dx; n.y+=dy; } });
+  }
+  function centerAllNodes(){
+    const visible=state.nodes.filter(n=>Number.isFinite(n.x)&&Number.isFinite(n.y));
+    if(!visible.length) return;
+    let minY=Infinity,maxY=-Infinity,minX=Infinity,maxX=-Infinity;
+    visible.forEach(n=>{
+      const m=nodeMetrics(n);
+      minX=Math.min(minX,n.x-m.w/2); maxX=Math.max(maxX,n.x+m.w/2);
+      minY=Math.min(minY,n.y-m.h/2); maxY=Math.max(maxY,n.y+m.h/2);
+    });
+    const cx=(minX+maxX)/2, cy=(minY+maxY)/2;
+    visible.forEach(n=>{n.x-=cx; n.y-=cy;});
+  }
+  function tidyDepthColumns(minGap=42){
+    const byDepth={};
+    state.nodes.forEach(n=>{ const d=getNodeDepth(n.id); (byDepth[d]??=[]).push(n); });
+    Object.values(byDepth).forEach(list=>{
+      list.sort((a,b)=>a.y-b.y || a.x-b.x);
+      let prevBottom=-Infinity;
+      list.forEach(n=>{
+        const m=nodeMetrics(n);
+        const top=n.y-m.h/2;
+        if(top < prevBottom + minGap){
+          const delta=(prevBottom + minGap) - top;
+          moveSubtree(n.id,0,delta);
+        }
+        const after=nodeMetrics(n);
+        prevBottom=n.y + after.h/2;
+      });
+    });
+  }
+  function isAncestorNode(ancestorId,nodeId){
+    let cur=nodeById(nodeId), seen=new Set();
+    while(cur && cur.parent && !seen.has(cur.parent)){
+      if(cur.parent===ancestorId) return true;
+      seen.add(cur.parent);
+      cur=nodeById(cur.parent);
+    }
+    return false;
+  }
+  function resolveNodeOverlaps(options={}){
+    const padding=Math.max(8, Number(options.padding)||30);
+    const iterations=Math.max(1, Number(options.iterations)||70);
+    for(let step=0; step<iterations; step++){
+      let moved=false;
+      const nodes=state.nodes.slice().sort((a,b)=>getNodeDepth(a.id)-getNodeDepth(b.id) || a.y-b.y || a.x-b.x);
+      for(let i=0;i<nodes.length;i++){
+        for(let j=i+1;j<nodes.length;j++){
+          const a=nodes[i], b=nodes[j];
+          const ma=nodeMetrics(a), mb=nodeMetrics(b);
+          const dx=b.x-a.x, dy=b.y-a.y;
+          const overlapX=(ma.w+mb.w)/2 + padding - Math.abs(dx);
+          const overlapY=(ma.h+mb.h)/2 + padding - Math.abs(dy);
+          if(overlapX<=0 || overlapY<=0) continue;
+          moved=true;
+          let target=b, moveX=0, moveY=0;
+          if(isAncestorNode(a.id,b.id)){
+            target=b;
+            moveY=(dy>=0?1:-1)*(overlapY+4);
+          }else if(isAncestorNode(b.id,a.id)){
+            target=a;
+            moveY=(dy<=0?-1:1)*(overlapY+4);
+          }else if(getNodeDepth(a.id)===getNodeDepth(b.id)){
+            target=(a.y<=b.y)?b:a;
+            moveY=(target===b?1:-1)*(overlapY+4);
+          }else if(overlapX < overlapY){
+            target=getNodeDepth(a.id)>getNodeDepth(b.id)?a:b;
+            moveX=(target===b?1:-1)*(overlapX+8);
+          }else{
+            target=(a.y<=b.y)?b:a;
+            moveY=(target===b?1:-1)*(overlapY+4);
+          }
+          moveSubtree(target.id,moveX,moveY);
+        }
+      }
+      tidyDepthColumns(padding*0.9);
+      if(!moved) break;
+    }
+    centerAllNodes();
+  }
+  function layoutTree(){
+    pushHistory();
+    const root=nodeById('root'); if(!root) return;
+    const H_GAP=150, V_GAP=56;
+    const byDepth={};
+    const collect=(id,d=0)=>{
+      const n=nodeById(id); if(!n) return;
