@@ -5,229 +5,25 @@
     kids.forEach((n,i)=>{const a=-Math.PI/2 + i*(2*Math.PI/Math.max(1,kids.length));n.x=Math.cos(a)*r1;n.y=Math.sin(a)*r1;layoutChildren(n, a, 155)});
     render();saveLocal();fit();
   }
-  function layoutChildren(parent,angle,dist){
-    const kids=allChildren(parent.id); if(!kids.length)return;
-    const spread=Math.min(1.15,Math.PI*.75/Math.max(1,kids.length));
-    kids.forEach((n,i)=>{const a=angle+(i-(kids.length-1)/2)*spread;n.x=parent.x+Math.cos(a)*dist;n.y=parent.y+Math.sin(a)*dist;layoutChildren(n,a,Math.max(120,dist-15))});
-  }
-  function getNodeDepth(id){
-    let depth=0, cur=nodeById(id), seen=new Set();
-    while(cur && cur.parent && !seen.has(cur.id)){
-      seen.add(cur.id);
-      depth++;
-      cur=nodeById(cur.parent);
-    }
-    return depth;
-  }
-  function collectSubtreeIds(id,set=new Set()){
-    set.add(id);
-    allChildren(id).forEach(c=>collectSubtreeIds(c.id,set));
-    return set;
-  }
-  function moveSubtree(id,dx=0,dy=0){
-    const ids=collectSubtreeIds(id,new Set());
-    state.nodes.forEach(n=>{ if(ids.has(n.id)){ n.x+=dx; n.y+=dy; } });
-  }
-  function centerAllNodes(){
-    const visible=state.nodes.filter(n=>Number.isFinite(n.x)&&Number.isFinite(n.y));
-    if(!visible.length) return;
-    let minY=Infinity,maxY=-Infinity,minX=Infinity,maxX=-Infinity;
-    visible.forEach(n=>{
-      const m=nodeMetrics(n);
-      minX=Math.min(minX,n.x-m.w/2); maxX=Math.max(maxX,n.x+m.w/2);
-      minY=Math.min(minY,n.y-m.h/2); maxY=Math.max(maxY,n.y+m.h/2);
-    });
-    const cx=(minX+maxX)/2, cy=(minY+maxY)/2;
-    visible.forEach(n=>{n.x-=cx; n.y-=cy;});
-  }
-  function tidyDepthColumns(minGap=42){
-    const byDepth={};
-    state.nodes.forEach(n=>{ const d=getNodeDepth(n.id); (byDepth[d]??=[]).push(n); });
-    Object.values(byDepth).forEach(list=>{
-      list.sort((a,b)=>a.y-b.y || a.x-b.x);
-      let prevBottom=-Infinity;
-      list.forEach(n=>{
-        const m=nodeMetrics(n);
-        const top=n.y-m.h/2;
-        if(top < prevBottom + minGap){
-          const delta=(prevBottom + minGap) - top;
-          moveSubtree(n.id,0,delta);
-        }
-        const after=nodeMetrics(n);
-        prevBottom=n.y + after.h/2;
-      });
-    });
-  }
-  function isAncestorNode(ancestorId,nodeId){
-    let cur=nodeById(nodeId), seen=new Set();
-    while(cur && cur.parent && !seen.has(cur.parent)){
-      if(cur.parent===ancestorId) return true;
-      seen.add(cur.parent);
-      cur=nodeById(cur.parent);
-    }
-    return false;
-  }
-  function resolveNodeOverlaps(options={}){
-    const padding=Math.max(8, Number(options.padding)||30);
-    const iterations=Math.max(1, Number(options.iterations)||70);
-    for(let step=0; step<iterations; step++){
-      let moved=false;
-      const nodes=state.nodes.slice().sort((a,b)=>getNodeDepth(a.id)-getNodeDepth(b.id) || a.y-b.y || a.x-b.x);
-      for(let i=0;i<nodes.length;i++){
-        for(let j=i+1;j<nodes.length;j++){
-          const a=nodes[i], b=nodes[j];
-          const ma=nodeMetrics(a), mb=nodeMetrics(b);
-          const dx=b.x-a.x, dy=b.y-a.y;
-          const overlapX=(ma.w+mb.w)/2 + padding - Math.abs(dx);
-          const overlapY=(ma.h+mb.h)/2 + padding - Math.abs(dy);
-          if(overlapX<=0 || overlapY<=0) continue;
-          moved=true;
-          let target=b, moveX=0, moveY=0;
-          if(isAncestorNode(a.id,b.id)){
-            target=b;
-            moveY=(dy>=0?1:-1)*(overlapY+4);
-          }else if(isAncestorNode(b.id,a.id)){
-            target=a;
-            moveY=(dy<=0?-1:1)*(overlapY+4);
-          }else if(getNodeDepth(a.id)===getNodeDepth(b.id)){
-            target=(a.y<=b.y)?b:a;
-            moveY=(target===b?1:-1)*(overlapY+4);
-          }else if(overlapX < overlapY){
-            target=getNodeDepth(a.id)>getNodeDepth(b.id)?a:b;
-            moveX=(target===b?1:-1)*(overlapX+8);
-          }else{
-            target=(a.y<=b.y)?b:a;
-            moveY=(target===b?1:-1)*(overlapY+4);
-          }
-          moveSubtree(target.id,moveX,moveY);
-        }
-      }
-      tidyDepthColumns(padding*0.9);
-      if(!moved) break;
-    }
-    centerAllNodes();
-  }
+  function layoutChildren(parent,angle,dist){const kids=allChildren(parent.id);if(!kids.length)return;const spread=Math.min(1.15,Math.PI*.75/Math.max(1,kids.length));kids.forEach((n,i)=>{const a=angle+(i-(kids.length-1)/2)*spread;n.x=parent.x+Math.cos(a)*dist;n.y=parent.y+Math.sin(a)*dist;layoutChildren(n,a,Math.max(120,dist-15))});}
+  function getNodeDepth(id){let depth=0,cur=nodeById(id),seen=new Set();while(cur&&cur.parent&&!seen.has(cur.id)){seen.add(cur.id);depth++;cur=nodeById(cur.parent);}return depth;}
+  function collectSubtreeIds(id,set=new Set()){set.add(id);allChildren(id).forEach(c=>collectSubtreeIds(c.id,set));return set;}
+  function moveSubtree(id,dx=0,dy=0){const ids=collectSubtreeIds(id,new Set());state.nodes.forEach(n=>{if(ids.has(n.id)){n.x+=dx;n.y+=dy;}});}
+  function centerAllNodes(){const visible=state.nodes.filter(n=>Number.isFinite(n.x)&&Number.isFinite(n.y));if(!visible.length)return;let minY=Infinity,maxY=-Infinity,minX=Infinity,maxX=-Infinity;visible.forEach(n=>{const m=nodeMetrics(n);minX=Math.min(minX,n.x-m.w/2);maxX=Math.max(maxX,n.x+m.w/2);minY=Math.min(minY,n.y-m.h/2);maxY=Math.max(maxY,n.y+m.h/2);});const cx=(minX+maxX)/2,cy=(minY+maxY)/2;visible.forEach(n=>{n.x-=cx;n.y-=cy;});}
+  function tidyDepthColumns(minGap=42){const byDepth={};state.nodes.forEach(n=>{const d=getNodeDepth(n.id);(byDepth[d]??=[]).push(n);});Object.values(byDepth).forEach(list=>{list.sort((a,b)=>a.y-b.y||a.x-b.x);let prevBottom=-Infinity;list.forEach(n=>{const m=nodeMetrics(n),top=n.y-m.h/2;if(top<prevBottom+minGap){const delta=(prevBottom+minGap)-top;moveSubtree(n.id,0,delta);}const after=nodeMetrics(n);prevBottom=n.y+after.h/2;});});}
+  function isAncestorNode(ancestorId,nodeId){let cur=nodeById(nodeId),seen=new Set();while(cur&&cur.parent&&!seen.has(cur.parent)){if(cur.parent===ancestorId)return true;seen.add(cur.parent);cur=nodeById(cur.parent);}return false;}
+  function resolveNodeOverlaps(options={}){const padding=Math.max(8,Number(options.padding)||30),iterations=Math.max(1,Number(options.iterations)||70);for(let step=0;step<iterations;step++){let moved=false;const nodes=state.nodes.slice().sort((a,b)=>getNodeDepth(a.id)-getNodeDepth(b.id)||a.y-b.y||a.x-b.x);for(let i=0;i<nodes.length;i++){for(let j=i+1;j<nodes.length;j++){const a=nodes[i],b=nodes[j],ma=nodeMetrics(a),mb=nodeMetrics(b),dx=b.x-a.x,dy=b.y-a.y,overlapX=(ma.w+mb.w)/2+padding-Math.abs(dx),overlapY=(ma.h+mb.h)/2+padding-Math.abs(dy);if(overlapX<=0||overlapY<=0)continue;moved=true;let target=b,moveX=0,moveY=0;if(isAncestorNode(a.id,b.id)){target=b;moveY=(dy>=0?1:-1)*(overlapY+4);}else if(isAncestorNode(b.id,a.id)){target=a;moveY=(dy<=0?-1:1)*(overlapY+4);}else if(getNodeDepth(a.id)===getNodeDepth(b.id)){target=(a.y<=b.y)?b:a;moveY=(target===b?1:-1)*(overlapY+4);}else if(overlapX<overlapY){target=getNodeDepth(a.id)>getNodeDepth(b.id)?a:b;moveX=(target===b?1:-1)*(overlapX+8);}else{target=(a.y<=b.y)?b:a;moveY=(target===b?1:-1)*(overlapY+4);}moveSubtree(target.id,moveX,moveY);}}tidyDepthColumns(padding*.9);if(!moved)break;}centerAllNodes();}
   function layoutTree(){
-    pushHistory();
-    const root=nodeById('root'); if(!root) return;
-    const H_GAP=150, V_GAP=56;
-    const byDepth={};
-    const collect=(id,d=0)=>{
-      const n=nodeById(id); if(!n) return;
-      (byDepth[d]??=[]).push(n);
-      allChildren(id).forEach(c=>collect(c.id,d+1));
-    };
-    collect('root');
-    const depths=Object.keys(byDepth).map(Number).sort((a,b)=>a-b);
-    const colWidths={};
-    depths.forEach(d=>{ colWidths[d]=Math.max(...byDepth[d].map(n=>nodeMetrics(n).w), NODE_MIN_WIDTH); });
-    const colX={};
-    colX[0]=0;
-    for(let i=1;i<depths.length;i++){
-      const prev=depths[i-1], cur=depths[i];
-      colX[cur]=colX[prev] + colWidths[prev]/2 + H_GAP + colWidths[cur]/2;
-    }
-    const subtreeHeight=new Map();
-    const measureSubtree=id=>{
-      const n=nodeById(id); if(!n) return 0;
-      const own=nodeMetrics(n).h;
-      const kids=allChildren(id);
-      if(!kids.length){ subtreeHeight.set(id,own); return own; }
-      const childrenTotal=kids.reduce((sum,c)=>sum+measureSubtree(c.id),0) + V_GAP*Math.max(0,kids.length-1);
-      const h=Math.max(own,childrenTotal);
-      subtreeHeight.set(id,h);
-      return h;
-    };
-    measureSubtree('root');
-    const place=(id,d,top)=>{
-      const n=nodeById(id); if(!n) return;
-      const blockH=subtreeHeight.get(id) || nodeMetrics(n).h;
-      const kids=allChildren(id);
-      n.x=colX[d] || 0;
-      if(!kids.length){ n.y=top + blockH/2; return; }
-      let cursor=top;
-      const childCenters=[];
-      kids.forEach(c=>{
-        const ch=subtreeHeight.get(c.id) || nodeMetrics(c).h;
-        place(c.id,d+1,cursor);
-        childCenters.push(nodeById(c.id).y);
-        cursor+=ch+V_GAP;
-      });
-      n.y=(childCenters[0]+childCenters[childCenters.length-1])/2;
-    };
-    place('root',0,0);
-    tidyDepthColumns(V_GAP);
-    resolveNodeOverlaps({padding:34,iterations:28});
-    centerAllNodes();
-    render();saveLocal();fit();
+    pushHistory();const root=nodeById('root');if(!root)return;const H_GAP=150,V_GAP=56,byDepth={};const collect=(id,d=0)=>{const n=nodeById(id);if(!n)return;(byDepth[d]??=[]).push(n);allChildren(id).forEach(c=>collect(c.id,d+1));};collect('root');
+    const depths=Object.keys(byDepth).map(Number).sort((a,b)=>a-b),colWidths={};depths.forEach(d=>{colWidths[d]=Math.max(...byDepth[d].map(n=>nodeMetrics(n).w),NODE_MIN_WIDTH);});const colX={0:0};for(let i=1;i<depths.length;i++){const prev=depths[i-1],cur=depths[i];colX[cur]=colX[prev]+colWidths[prev]/2+H_GAP+colWidths[cur]/2;}
+    const subtreeHeight=new Map();const measureSubtree=id=>{const n=nodeById(id);if(!n)return 0;const own=nodeMetrics(n).h,kids=allChildren(id);if(!kids.length){subtreeHeight.set(id,own);return own;}const childrenTotal=kids.reduce((sum,c)=>sum+measureSubtree(c.id),0)+V_GAP*Math.max(0,kids.length-1),h=Math.max(own,childrenTotal);subtreeHeight.set(id,h);return h;};measureSubtree('root');
+    const place=(id,d,top)=>{const n=nodeById(id);if(!n)return;const blockH=subtreeHeight.get(id)||nodeMetrics(n).h,kids=allChildren(id);n.x=colX[d]||0;if(!kids.length){n.y=top+blockH/2;return;}let cursor=top;const childCenters=[];kids.forEach(c=>{const ch=subtreeHeight.get(c.id)||nodeMetrics(c).h;place(c.id,d+1,cursor);childCenters.push(nodeById(c.id).y);cursor+=ch+V_GAP;});n.y=(childCenters[0]+childCenters[childCenters.length-1])/2;};place('root',0,0);tidyDepthColumns(V_GAP);resolveNodeOverlaps({padding:34,iterations:28});centerAllNodes();render();saveLocal();fit();
   }
-  $('layoutRadial').onclick=layoutRadial; $('layoutTree').onclick=layoutTree;
-  $('collapseAll').onclick=()=>{pushHistory();state.collapsed=state.nodes.filter(n=>n.id!=='root'&&allChildren(n.id).length).map(n=>n.id);render();saveLocal()};
-  $('expandAll').onclick=()=>{pushHistory();state.collapsed=[];render();saveLocal()};
-  $('modeMind').onclick=()=>{pushHistory();state.mode='mind';render();saveLocal()};
-  $('modeConcept').onclick=()=>{pushHistory();state.mode='concept';render();saveLocal()};
-  $('addChild').onclick=addChild;$('quickChild').onclick=addChild;$('addSibling').onclick=addSibling;$('quickSibling').onclick=addSibling;$('quickDelete').onclick=removeSelected;$('quickConnect').onclick=startConnect;$('makeRelation').onclick=startConnect;
-  $('undo').onclick=undo;$('redo').onclick=redo;
-  $('mapTitle').addEventListener('input',e=>{state.title=e.target.value||'Meu mapa';$('printTitle').textContent=state.title;saveLocal()});
-  $('theme').addEventListener('change',e=>setTheme(e.target.value));
-  $('print').onclick=exportPdf;
-  $('saveJson').onclick=exportJson;
-  $('exportJson2').onclick=exportJson;$('importJson2').onclick=()=> $('fileInput').click();$('loadJson').onclick=()=> $('fileInput').click();
-  $('fileInput').onchange=async(e)=>{
-    const f=e.target.files[0];if(!f)return;
-    try{
-      $('status').textContent='Importando mapa e restaurando anexos...';
-      const raw=JSON.parse(await f.text());
-      pushHistory();
-      state=normalizeState(raw);
-      const result=await migrateEmbeddedAttachmentsToIndexedDB(state);
-      selected=state.nodes.find(n=>n.id==='root')?.id||state.nodes[0]?.id;
-      render();saveLocal();fit();
-      $('status').textContent=result.failed?`Mapa importado; ${result.failed} anexo(s) não puderam ser restaurados.`:`Mapa importado • ${result.migrated} anexo(s) restaurado(s) no IndexedDB`;
-    }catch(err){console.error(err);alert('Arquivo JSON inválido ou não foi possível restaurar os anexos.');}
-    e.target.value='';
-  };
-  function download(name,data,type){const blob=new Blob([data],{type}), a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),800)}
-  function enterExportRender(){ renderContext='export'; render(); }
-  function leaveExportRender(){ renderContext='screen'; render(); }
-  function escapeHtml(str=''){
-    return String(str).replace(/[&<>"']/g,m=>(({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[m]));
-  }
-  function normalizeState(raw){
-    const fallback=JSON.parse(DEFAULT_STATE_JSON);
-    if(!raw || typeof raw!=='object' || !Array.isArray(raw.nodes) || raw.nodes.length===0) return fallback;
-    const s=raw;
-    s.title=typeof s.title==='string' ? s.title : 'Meu mapa';
-    s.mode=s.mode==='concept'?'concept':'mind';
-    s.theme=themes[s.theme]?s.theme:'blue';
-    s.nodes=s.nodes.filter(n=>n && typeof n==='object');
-    if(!s.nodes.length) return fallback;
-    const ids=new Set();
-    s.nodes.forEach((n,i)=>{
-      let id=typeof n.id==='string' && n.id ? n.id : 'n'+(i+1);
-      while(ids.has(id)) id=id+'_'+(i+1);
-      n.id=id; ids.add(id);
-      n.text=typeof n.text==='string' && n.text.trim()?n.text:'Novo tópico';
-      n.x=Number.isFinite(Number(n.x))?Number(n.x):0; n.y=Number.isFinite(Number(n.y))?Number(n.y):0;
-      n.parent=n.parent==null?null:String(n.parent);
-      n.color=typeof n.color==='string'?n.color:'#fff';
-      n.shape=['rounded','pill','box'].includes(n.shape)?n.shape:'rounded';
-      n.note=typeof n.note==='string'?n.note:''; n.link=normalizeUrl(n.link||''); n.linkTitle=typeof n.linkTitle==='string'?n.linkTitle:'';
-      if(n.link && looksLikeUrlText(n.text)){ n.linkTitle=(n.linkTitle||'').trim() || fallbackLinkTitle(n.link); n.text=n.linkTitle; }
-      n.image=typeof n.image==='string'?n.image:''; n.attachments=Array.isArray(n.attachments)?n.attachments.filter(a=>a&&typeof a==='object').map(a=>{const meta={id:String(a.id||makeAttachmentId()),name:String(a.name||'arquivo'),type:String(a.type||'application/octet-stream'),kind:String(a.kind||attachmentKind(a.name||'',a.type||'')),size:Number(a.size)||0,createdAt:String(a.createdAt||''),storage:'indexeddb'};if(typeof a.data==='string'&&a.data.startsWith('data:'))meta.data=a.data;return meta;}):[]; n.bold=!!n.bold; n.italic=!!n.italic; n.presentOrder=normalizePresentOrder(n.presentOrder);
-    });
-    let root=s.nodes.find(n=>n.id==='root');
-    if(!root){
-      root=s.nodes.find(n=>!n.parent)||s.nodes[0];
-      const oldId=root.id; root.id='root'; root.parent=null;
-      s.nodes.forEach(n=>{if(n!==root && n.parent===oldId)n.parent='root';});
-      (Array.isArray(s.relations)?s.relations:[]).forEach(r=>{if(r.a===oldId)r.a='root';if(r.b===oldId)r.b='root';});
-    }
-    const validIds=new Set(s.nodes.map(n=>n.id));
-    s.nodes.forEach(n=>{if(n.id!=='root' && (!n.parent || !validIds.has(n.parent) || n.parent===n.id))n.parent='root';});
-    s.relations=Array.isArray(s.relations)?s.relations.filter(r=>r&&validIds.has(r.a)&&validIds.has(r.b)&&r.a!==r.b).map(r=>({a:r.a,b:r.b,label:typeof r.label==='string'?r.label:''})):[];
-    s.collapsed=Array.isArray(s.collapsed)?[...new Set(s.collapsed.filter(id=>validIds.has(id)))]:[];
-    const maxNumeric=s.nodes.reduce((m,n)=>{const k=/^n(\d+)$/.exec(n.id);return k?Math.max(m,Number(k[1])):m;},9);
-    s.next=Math.max(Number.isFinite(Number(s.next))?Number(s.next):10,maxNumeric+1);
-    return s;
-  }
+  $('layoutRadial').onclick=layoutRadial;$('layoutTree').onclick=layoutTree;$('collapseAll').onclick=()=>{pushHistory();state.collapsed=state.nodes.filter(n=>n.id!=='root'&&allChildren(n.id).length).map(n=>n.id);render();saveLocal()};$('expandAll').onclick=()=>{pushHistory();state.collapsed=[];render();saveLocal()};$('modeMind').onclick=()=>{pushHistory();state.mode='mind';render();saveLocal()};$('modeConcept').onclick=()=>{pushHistory();state.mode='concept';render();saveLocal()};
+  $('addChild').onclick=addChild;$('quickChild').onclick=addChild;$('addSibling').onclick=addSibling;$('quickSibling').onclick=addSibling;$('quickDelete').onclick=removeSelected;$('quickConnect').onclick=startConnect;$('makeRelation').onclick=startConnect;$('undo').onclick=undo;$('redo').onclick=redo;$('mapTitle').addEventListener('input',e=>{state.title=e.target.value||'Meu mapa';$('printTitle').textContent=state.title;saveLocal()});$('theme').addEventListener('change',e=>setTheme(e.target.value));
+  $('importJson2').onclick=()=> $('fileInput').click();$('loadJson').onclick=()=> $('fileInput').click();
+  $('fileInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{$('status').textContent='Importando mapa e restaurando anexos...';const raw=JSON.parse(await f.text());pushHistory();state=normalizeState(raw);const result=await migrateEmbeddedAttachmentsToIndexedDB(state);selected=state.nodes.find(n=>n.id==='root')?.id||state.nodes[0]?.id;render();saveLocal();fit();$('status').textContent=result.failed?`Mapa importado; ${result.failed} anexo(s) não puderam ser restaurados.`:`Mapa importado • ${result.migrated} anexo(s) restaurado(s) no IndexedDB`;}catch(err){console.error(err);alert('Arquivo JSON inválido ou não foi possível restaurar os anexos.');}e.target.value='';};
+  function download(name,data,type){const blob=new Blob([data],{type}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),800)}
+  function enterExportRender(){renderContext='export';render();}function leaveExportRender(){renderContext='screen';render();}
+  function escapeHtml(str=''){return String(str).replace(/[&<>"']/g,m=>(({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[m]));}
+  function normalizeState(raw){const fallback=JSON.parse(DEFAULT_STATE_JSON);if(!raw||typeof raw!=='object'||!Array.isArray(raw.nodes)||raw.nodes.length===0)return fallback;const s=raw;s.title=typeof s.title==='string'?s.title:'Meu mapa';s.mode=s.mode==='concept'?'concept':'mind';s.theme=themes[s.theme]?s.theme:'blue';s.nodes=s.nodes.filter(n=>n&&typeof n==='object');if(!s.nodes.length)return fallback;const ids=new Set();s.nodes.forEach((n,i)=>{let id=typeof n.id==='string'&&n.id?n.id:'n'+(i+1);while(ids.has(id))id=id+'_'+(i+1);n.id=id;ids.add(id);n.text=typeof n.text==='string'&&n.text.trim()?n.text:'Novo tópico';n.x=Number.isFinite(Number(n.x))?Number(n.x):0;n.y=Number.isFinite(Number(n.y))?Number(n.y):0;n.parent=n.parent==null?null:String(n.parent);n.color=typeof n.color==='string'?n.color:'#fff';n.shape=['rounded','pill','box'].includes(n.shape)?n.shape:'rounded';n.note=typeof n.note==='string'?n.note:'';n.link=normalizeUrl(n.link||'');n.linkTitle=typeof n.linkTitle==='string'?n.linkTitle:'';if(n.link&&looksLikeUrlText(n.text)){n.linkTitle=(n.linkTitle||'').trim()||fallbackLinkTitle(n.link);n.text=n.linkTitle;}n.image=typeof n.image==='string'?n.image:'';n.attachments=Array.isArray(n.attachments)?n.attachments.filter(a=>a&&typeof a==='object').map(a=>{const meta={id:String(a.id||makeAttachmentId()),name:String(a.name||'arquivo'),type:String(a.type||'application/octet-stream'),kind:String(a.kind||attachmentKind(a.name||'',a.type||'')),size:Number(a.size)||0,createdAt:String(a.createdAt||''),storage:'indexeddb'};if(typeof a.data==='string'&&a.data.startsWith('data:'))meta.data=a.data;return meta;}):[];n.bold=!!n.bold;n.italic=!!n.italic;n.presentOrder=normalizePresentOrder(n.presentOrder);});let root=s.nodes.find(n=>n.id==='root');if(!root){root=s.nodes.find(n=>!n.parent)||s.nodes[0];const oldId=root.id;root.id='root';root.parent=null;s.nodes.forEach(n=>{if(n!==root&&n.parent===oldId)n.parent='root';});(Array.isArray(s.relations)?s.relations:[]).forEach(r=>{if(r.a===oldId)r.a='root';if(r.b===oldId)r.b='root';});}const validIds=new Set(s.nodes.map(n=>n.id));s.nodes.forEach(n=>{if(n.id!=='root'&&(!n.parent||!validIds.has(n.parent)||n.parent===n.id))n.parent='root';});s.relations=Array.isArray(s.relations)?s.relations.filter(r=>r&&validIds.has(r.a)&&validIds.has(r.b)&&r.a!==r.b).map(r=>({a:r.a,b:r.b,label:typeof r.label==='string'?r.label:''})):[];s.collapsed=Array.isArray(s.collapsed)?[...new Set(s.collapsed.filter(id=>validIds.has(id)))]:[];const maxNumeric=s.nodes.reduce((m,n)=>{const k=/^n(\d+)$/.exec(n.id);return k?Math.max(m,Number(k[1])):m;},9);s.next=Math.max(Number.isFinite(Number(s.next))?Number(s.next):10,maxNumeric+1);return s;}
