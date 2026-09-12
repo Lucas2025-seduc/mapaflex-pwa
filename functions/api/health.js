@@ -32,16 +32,24 @@ export async function onRequest(context) {
     stripeWebhookSecretPresent: Boolean(stripeWebhookSecret)
   };
 
-  if (!databaseUrl) {
-    return new Response(JSON.stringify({ ...base, code: 'DB_URL_MISSING' }), { status: 503, headers });
-  }
-  if (!stripeWebhookSecret) {
-    return new Response(JSON.stringify({ ...base, code: 'STRIPE_SECRET_MISSING' }), { status: 503, headers });
+  if (!databaseUrl) return new Response(JSON.stringify({ ...base, code: 'DB_URL_MISSING' }), { status: 503, headers });
+  if (!stripeWebhookSecret) return new Response(JSON.stringify({ ...base, code: 'STRIPE_SECRET_MISSING' }), { status: 503, headers });
+
+  let sql;
+  try {
+    sql = neon(databaseUrl);
+    await sql`select 1 as ok`;
+  } catch (error) {
+    console.error('[health:connect]', error);
+    return new Response(JSON.stringify({
+      ...base,
+      code: 'DB_CONNECTION_FAILED',
+      databaseConnected: false,
+      mapaflexSchemaReadable: false
+    }), { status: 503, headers });
   }
 
   try {
-    const sql = neon(databaseUrl);
-    await sql`select 1 as ok`;
     const rows = await sql`select code from mapaflex.plans where active = true order by code limit 5`;
     return new Response(JSON.stringify({
       ...base,
@@ -52,11 +60,11 @@ export async function onRequest(context) {
       planCodes: rows.map(row => row.code)
     }), { status: 200, headers });
   } catch (error) {
-    console.error('[health]', error);
+    console.error('[health:schema]', error);
     return new Response(JSON.stringify({
       ...base,
-      code: 'DB_OR_SCHEMA_FAILED',
-      databaseConnected: false,
+      code: 'SCHEMA_ACCESS_FAILED',
+      databaseConnected: true,
       mapaflexSchemaReadable: false
     }), { status: 503, headers });
   }
