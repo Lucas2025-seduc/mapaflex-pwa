@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#2563eb">
+<title>Conta e licença — MapaFlex</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#0f172a;background:#f8fafc}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(180deg,#eff6ff 0,#f8fafc 35%,#fff 100%)}main{width:min(760px,calc(100% - 28px));margin:28px auto 60px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}.brand{font-size:24px;font-weight:900}.brand span{color:#2563eb}.back{color:#334155;text-decoration:none;font-weight:700}.card{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:20px;box-shadow:0 12px 34px rgba(15,23,42,.07);margin-bottom:16px}h1{font-size:24px;margin:0 0 8px}h2{font-size:17px;margin:0 0 14px}.muted{color:#64748b;font-size:14px;line-height:1.5}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:grid;gap:6px;margin-bottom:12px}label{font-size:13px;font-weight:800;color:#475569}input{width:100%;min-height:44px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;font:inherit}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:10px;padding:10px 14px;min-height:42px;font-weight:800;cursor:pointer}.btn.primary{background:#2563eb;border-color:#2563eb;color:#fff}.btn.danger{color:#b91c1c}.btn:disabled{opacity:.55;cursor:not-allowed}.status{padding:12px;border-radius:12px;background:#f1f5f9;font-size:14px}.pill{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:900;background:#e2e8f0}.pill.pro{background:#dcfce7;color:#166534}.price{font-size:34px;font-weight:950;margin:8px 0}.price small{font-size:14px;color:#64748b}.feature{display:flex;gap:8px;margin:8px 0;color:#334155}.hidden{display:none!important}.notice{padding:10px 12px;border-radius:10px;background:#ecfeff;color:#155e75;font-size:13px;margin:12px 0}.error{background:#fef2f2;color:#991b1b}.ok{background:#f0fdf4;color:#166534}@media(max-width:620px){.grid{grid-template-columns:1fr}.top{align-items:flex-start}.card{padding:16px}.price{font-size:30px}}
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><div class="brand">Mapa<span>Flex</span></div><a class="back" href="/">← Voltar ao mapa</a></div>
+  <div id="message" class="notice hidden"></div>
+
+  <section id="authCard" class="card">
+    <h1>Conta e licença</h1>
+    <p class="muted">Entre para assinar o MapaFlex Pro e manter sua licença vinculada à sua conta.</p>
+    <div class="grid">
+      <div>
+        <h2>Entrar</h2>
+        <div class="field"><label>E-mail</label><input id="loginEmail" type="email" autocomplete="email"></div>
+        <div class="field"><label>Senha</label><input id="loginPassword" type="password" autocomplete="current-password"></div>
+        <button class="btn primary" id="loginBtn">Entrar</button>
+      </div>
+      <div>
+        <h2>Criar conta</h2>
+        <div class="field"><label>Nome</label><input id="signupName" autocomplete="name"></div>
+        <div class="field"><label>E-mail</label><input id="signupEmail" type="email" autocomplete="email"></div>
+        <div class="field"><label>Senha</label><input id="signupPassword" type="password" minlength="8" autocomplete="new-password"></div>
+        <button class="btn" id="signupBtn">Criar conta</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="accountCard" class="card hidden">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+      <div><h1 id="accountTitle">Minha conta</h1><div id="accountEmail" class="muted"></div></div>
+      <span id="planPill" class="pill">GRÁTIS</span>
+    </div>
+    <div id="licenseStatus" class="status" style="margin-top:14px">Carregando licença…</div>
+    <div class="actions" style="margin-top:14px">
+      <button class="btn" id="refreshBtn">Atualizar licença</button>
+      <button class="btn" id="portalBtn">Gerenciar assinatura</button>
+      <button class="btn danger" id="logoutBtn">Sair</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>MapaFlex Pro</h2>
+    <div class="price">R$ 49,90 <small>/ mês</small></div>
+    <div class="feature">✓ IA premium e explicações avançadas</div>
+    <div class="feature">✓ Exportações avançadas</div>
+    <div class="feature">✓ Licença vinculada à conta, com até 2 dispositivos por padrão</div>
+    <p class="muted">A assinatura é recorrente e pode ser gerenciada pelo Portal do Cliente Stripe.</p>
+    <button class="btn primary" id="subscribeBtn">Assinar Pro por R$ 49,90/mês</button>
+  </section>
+</main>
+<script>
+(()=>{
+  const $=id=>document.getElementById(id);
+  const msg=(text,type='')=>{const el=$('message');el.textContent=text;el.className='notice '+(type||'');el.classList.remove('hidden');};
+  const clearMsg=()=>$('message').classList.add('hidden');
+  async function api(url,options={}){
+    const r=await fetch(url,{credentials:'same-origin',...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok){const e=new Error(data.error||data.message||'Falha na solicitação.');e.status=r.status;throw e;} return data;
+  }
+  async function session(){
+    try{return await api('/api/auth?action=get-session',{method:'GET',headers:{}});}catch{return null;}
+  }
+  async function refresh(){
+    clearMsg();
+    const s=await session();
+    const user=s?.user||s?.session?.user;
+    const logged=!!user?.id;
+    $('authCard').classList.toggle('hidden',logged);
+    $('accountCard').classList.toggle('hidden',!logged);
+    $('subscribeBtn').disabled=!logged;
+    if(!logged){$('subscribeBtn').title='Faça login para assinar';return;}
+    $('accountEmail').textContent=user.email||'';
+    try{
+      const st=await api('/api/license-status',{method:'GET',headers:{}});
+      const pro=!!st.premium;
+      $('planPill').textContent=pro?'PRO':'GRÁTIS';
+      $('planPill').classList.toggle('pro',pro);
+      $('licenseStatus').innerHTML=pro
+        ? `<b>Licença Pro ativa.</b>${st.current_period_end?` Renovação/período atual até ${new Date(st.current_period_end).toLocaleDateString('pt-BR')}.`:''}${st.cancel_at_period_end?' O cancelamento está agendado para o fim do período.':''}`
+        : `Plano atual: <b>${String(st.plan||'free').toUpperCase()}</b>. Status: ${st.status||'ativo'}.`;
+      $('portalBtn').disabled=!st.subscription_status;
+      $('subscribeBtn').disabled=pro;
+      $('subscribeBtn').textContent=pro?'Pro já ativo':'Assinar Pro por R$ 49,90/mês';
+    }catch(e){$('licenseStatus').textContent=e.message;$('portalBtn').disabled=true;}
+  }
+  $('loginBtn').onclick=async()=>{try{clearMsg();await api('/api/auth?action=sign-in/email',{method:'POST',body:JSON.stringify({email:$('loginEmail').value.trim(),password:$('loginPassword').value})});msg('Login realizado.','ok');await refresh();}catch(e){msg(e.message,'error');}};
+  $('signupBtn').onclick=async()=>{try{clearMsg();await api('/api/auth?action=sign-up/email',{method:'POST',body:JSON.stringify({name:$('signupName').value.trim()||$('signupEmail').value.trim(),email:$('signupEmail').value.trim(),password:$('signupPassword').value})});msg('Conta criada.','ok');await refresh();}catch(e){msg(e.message,'error');}};
+  $('logoutBtn').onclick=async()=>{try{await api('/api/auth?action=sign-out',{method:'POST',body:'{}'});}catch{}location.reload();};
+  $('refreshBtn').onclick=refresh;
+  $('subscribeBtn').onclick=async()=>{try{const d=await api('/api/checkout',{method:'POST',body:'{}'});if(d.url)location.href=d.url;}catch(e){msg(e.message,'error');}};
+  $('portalBtn').onclick=async()=>{try{const d=await api('/api/portal',{method:'POST',body:'{}'});if(d.url)location.href=d.url;}catch(e){msg(e.message,'error');}};
+  const q=new URLSearchParams(location.search);if(q.get('checkout')==='success')msg('Pagamento concluído. A licença será atualizada automaticamente após o webhook do Stripe.','ok');if(q.get('checkout')==='cancel')msg('Checkout cancelado. Nenhuma cobrança foi concluída.');
+  refresh();
+})();
+</script>
+</body>
+</html>
