@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "echo Vercel static build ready",
+    "dev": "wrangler dev",
+    "build": "echo Cloudflare Worker static assets ready",
+    "deploy": "wrangler deploy",
     "deploy:cloudflare": "wrangler deploy"
   },
   "dependencies": {
