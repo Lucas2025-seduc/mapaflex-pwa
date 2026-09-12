@@ -1,0 +1,113 @@
+        setAiStatus(count<min?`Mapa recebido com ${count} balões (abaixo da meta de ${min}). Você pode gerar novamente para obter mais ramificações.`:`Mapa recebido • ${count} balões • ${mapOpt.profile.label}.`,count<min?'err':'ok');
+      }else setAiStatus('Resposta recebida.','ok');
+      openAiResult(expectJson?JSON.stringify(structured,null,2):txt,action,structured);
+    }catch(err){console.error(err);setAiStatus('Erro: '+err.message,'err');alert('Falha na IA: '+err.message);}
+    finally{$('aiRun').disabled=false;}
+  }
+  function applyAiMap(obj){
+    if(!obj||!Array.isArray(obj.nodes)||!obj.nodes.length){alert('JSON de mapa inválido.');return;}
+    if(!confirm('Substituir o mapa atual pelo mapa criado pela IA?')) return;
+    pushHistory();
+    const keyToId=new Map(); let seq=1;
+    const rootSrc=obj.nodes.find(n=>n.parent==null)||obj.nodes[0];
+    const normalizedKeys=new Map();
+    obj.nodes.forEach((src,i)=>normalizedKeys.set(src,String(src.key||('k'+i))));
+    const rootKey=normalizedKeys.get(rootSrc)||'root';
+    keyToId.set(rootKey,'root');
+    for(const src of obj.nodes){const key=normalizedKeys.get(src);if(src===rootSrc)continue;keyToId.set(key,'n'+(seq++));}
+    const nodes=[];
+    for(const src of obj.nodes){
+      const key=normalizedKeys.get(src); const id=src===rootSrc?'root':(keyToId.get(key)||'n'+(seq++));
+      let parent=null;if(src!==rootSrc){parent=keyToId.get(String(src.parent||rootKey))||'root';}
+      nodes.push({id,text:String(src.text||'Novo tópico').trim()||'Novo tópico',x:0,y:0,parent,color:id==='root'?'#e8f0ff':'#fff',shape:'rounded',note:String(src.note||''),link:'',linkTitle:'',image:'',attachments:[],bold:id==='root',italic:false,presentOrder:''});
+    }
+    state.nodes=nodes;state.title=String(obj.title||'Mapa criado pela IA');state.mode=obj.mode==='concept'?'concept':'mind';state.relations=[];
+    for(const r of (obj.relations||[])){
+      const a=keyToId.get(String(r.from||r.a||'')),b=keyToId.get(String(r.to||r.b||''));if(a&&b&&a!==b)state.relations.push({a,b,label:String(r.label||'')});
+    }
+    state.collapsed=[];state.next=Math.max(10,seq+1);selected='root';render();layoutTree();saveLocal();closeAiModal();
+  }
+  function applyAiRelationsOrExpand(){
+    if(lastAiAction==='expand'){
+      const parent=nodeById(selected);if(!parent||!Array.isArray(lastAiStructured?.children))return;
+      pushHistory();
+      lastAiStructured.children.forEach((c,i)=>{const n=makeNode(String(c.text||'Novo tópico'),parent.id,parent.x+220,parent.y+i*90);n.note=String(c.note||'');state.nodes.push(n);});
+      layoutTree();saveLocal();closeAiModal();return;
+    }
+    const rels=lastAiStructured?.relations;if(!Array.isArray(rels))return;
+    pushHistory();let added=0;
+    for(const r of rels){const a=nodeById(String(r.from||'')),b=nodeById(String(r.to||''));if(!a||!b||a.id===b.id)continue;if(!state.relations.some(x=>(x.a===a.id&&x.b===b.id)||(x.a===b.id&&x.b===a.id))){state.relations.push({a:a.id,b:b.id,label:String(r.label||'')});added++;}}
+    render();saveLocal();closeAiModal();$('status').textContent=`${added} relações adicionadas pela IA`;
+  }
+  function updateInspector(){
+    const n=nodeById(selected);
+    const form=$('nodeForm'), none=$('noSelection');
+    if(!n){form.style.display='none';none.style.display='block';return}
+    form.style.display='block';none.style.display='none';
+    $('nodeTextInput').value=n.text; $('nodeShape').value=n.shape||'rounded'; $('nodeNote').value=n.note||''; $('nodeLink').value=n.link||''; $('nodePresentOrder').value=normalizePresentOrder(n.presentOrder) || '';
+    renderAttachmentList(n);
+    const wrap=$('colors'); wrap.innerHTML='';
+    colors.forEach(c=>{const b=document.createElement('button');b.className='color';b.style.background=c;b.title=c;b.onclick=()=>{pushHistory();n.color=c;render();saveLocal()};wrap.appendChild(b)});
+  }
+  $('nodeTextInput').addEventListener('change',()=>{const n=nodeById(selected);if(!n)return;pushHistory();n.text=$('nodeTextInput').value.trim()||n.text;render();saveLocal()});
+  $('nodeShape').addEventListener('change',()=>{const n=nodeById(selected);if(!n)return;pushHistory();n.shape=$('nodeShape').value;render();saveLocal()});
+  $('nodeNote').addEventListener('change',()=>{const n=nodeById(selected);if(!n)return;pushHistory();n.note=$('nodeNote').value;saveLocal()});
+  $('nodePresentOrder').addEventListener('change',()=>{const n=nodeById(selected);if(!n)return;pushHistory();n.presentOrder=normalizePresentOrder($('nodePresentOrder').value);render();saveLocal()});
+  $('nodeLink').addEventListener('change',async()=>{const n=nodeById(selected);if(!n)return;await setNodeLink(n,$('nodeLink').value)});
+  $('inspectorImage').onclick=()=>$('imageInput').click();
+  $('inspectorRemoveImage').onclick=()=>{const n=nodeById(selected);if(!n)return;pushHistory();n.image='';render();saveLocal()};
+  $('attachFile').onclick=()=>$('attachmentInput').click();
+  $('attachmentInput').onchange=async(e)=>{const files=[...(e.target.files||[])];for(const f of files)await addAttachmentFile(f,selected);e.target.value='';};
+  $('recordAudio').onclick=startAudioRecording;
+  $('stopRecording').onclick=stopAudioRecording;
+  $('mediaModalClose').onclick=closeMediaModal;
+  $('mediaDownload').onclick=async()=>{if(activeAttachment)await downloadAttachment(activeAttachment)};
+  $('mediaModal').addEventListener('click',e=>{if(e.target.id==='mediaModal')closeMediaModal();});
+  function createRelation(a,b){
+    if(!a||!b||a===b)return;
+    if(!state.relations.some(r=>(r.a===a&&r.b===b)||(r.a===b&&r.b===a))){
+      pushHistory(); const label=state.mode==='concept'?(prompt('Frase de ligação (opcional):','relaciona-se com')||''):''; state.relations.push({a,b,label}); render(); saveLocal();
+    }
+    connectSource=null;
+  }
+  function startConnect(){ if(selected){connectSource=selected; $('status').textContent='Selecione outro nó para criar a relação';}}
+  function showContext(x,y){const r=canvas.getBoundingClientRect();const m=$('contextMenu');m.style.left=(x-r.left)+'px';m.style.top=(y-r.top)+'px';m.style.display='block'}
+  function hideContext(){ $('contextMenu').style.display='none';}
+  document.addEventListener('click',()=>hideContext());
+  $('ctxEdit').onclick=editSelected; $('ctxChild').onclick=addChild; $('ctxSibling').onclick=addSibling; $('ctxDelete').onclick=removeSelected; $('ctxConnect').onclick=startConnect;
+  function onNodeDown(ev){
+    ev.stopPropagation();
+    const id=ev.currentTarget.dataset.id;
+    selectNodeWithoutRender(id);
+    if(ev.detail>=2) return;
+    const pt=screenToWorld(ev.clientX,ev.clientY);
+    const n=nodeById(id); if(!n) return;
+    dragging={id,dx:n.x-pt.x,dy:n.y-pt.y};
+    dragOrigin={x:ev.clientX,y:ev.clientY};
+    nodeWasDragged=false;
+    ev.currentTarget.classList.add('dragging');
+    window.addEventListener('mousemove',onDrag); window.addEventListener('mouseup',onDragEnd,{once:true});
+  }
+  function onDrag(ev){
+    if(!dragging)return;
+    if(dragOrigin && Math.hypot(ev.clientX-dragOrigin.x,ev.clientY-dragOrigin.y)>4) nodeWasDragged=true;
+    const p=screenToWorld(ev.clientX,ev.clientY), n=nodeById(dragging.id);
+    if(!n)return;
+    n.x=p.x+dragging.dx; n.y=p.y+dragging.dy; render();
+  }
+  function onDragEnd(){dragging=null;dragOrigin=null;window.removeEventListener('mousemove',onDrag);saveLocal()}
+  function screenToWorld(x,y){
+    const r=svg.getBoundingClientRect(); return {x:(x-r.left-r.width/2-pan.x)/zoom,y:(y-r.top-r.height/2-pan.y)/zoom};
+  }
+  function onPanDown(ev){
+    if(ev.target!==svg && ev.target!==viewport)return;
+    panning={x:ev.clientX,y:ev.clientY,px:pan.x,py:pan.y};
+    window.addEventListener('mousemove',onPanMove); window.addEventListener('mouseup',onPanEnd,{once:true});
+  }
+  function onPanMove(ev){if(!panning)return;pan.x=panning.px+(ev.clientX-panning.x);pan.y=panning.py+(ev.clientY-panning.y);applyViewport();}
+  function onPanEnd(){panning=null;window.removeEventListener('mousemove',onPanMove)}
+  function applyViewport(){viewport.setAttribute('transform',`translate(${svg.clientWidth/2+pan.x},${svg.clientHeight/2+pan.y}) scale(${zoom})`)}
+  svg.addEventListener('mousedown',onPanDown);
+  svg.addEventListener('dblclick',(ev)=>{if(ev.target===svg){finishInlineEdit();addChild()}});
+  svg.addEventListener('wheel',(ev)=>{ev.preventDefault(); const z=zoom*(ev.deltaY<0?1.1:.9); setZoom(z)}, {passive:false});
+  function setZoom(z){zoom=Math.max(.25,Math.min(2.5,z));$('zoomLabel').textContent=Math.round(zoom*100)+'%';applyViewport()}
