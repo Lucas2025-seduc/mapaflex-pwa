@@ -12,13 +12,15 @@ export default {
         env.ASSETS.fetch(request),
         env.ASSETS.fetch(new Request(new URL('/mobile-touch-fix.js', url.origin), request))
       ]);
-      if (baseRes.ok && touchRes.ok) {
+      const touchType = touchRes.headers.get('content-type') || '';
+      if (baseRes.ok && touchRes.ok && /javascript/i.test(touchType)) {
         const body = `${await baseRes.text()}\n${await touchRes.text()}`;
         const headers = new Headers(baseRes.headers);
         headers.set('Content-Type', 'application/javascript; charset=utf-8');
         headers.set('Cache-Control', 'no-cache');
         return new Response(body, { status: 200, headers });
       }
+      return baseRes;
     }
 
     return env.ASSETS.fetch(request);
