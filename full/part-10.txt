@@ -1,0 +1,90 @@
+      if(e && AI_EDUCATION_LEVELS[e] && $('aiEducationLevel')) $('aiEducationLevel').value=e;
+      if((x==='yes'||x==='no') && $('aiMapExamples')) $('aiMapExamples').value=x;
+    }catch(e){}
+    updateAiMapDepthHelp();
+    updateAiMapOptionsVisibility();
+  }
+  function aiSystemPrompt(expectJson=false){
+    return `Você é o assistente pedagógico do MapaFlex, um editor de mapas mentais e conceituais. Responda em português do Brasil, com clareza, rigor e organização. Considere a estrutura do mapa fornecida. Não invente links específicos como se fossem verificados; quando sugerir materiais, deixe claro quando a URL não foi confirmada. ${expectJson?'Quando solicitado JSON, devolva SOMENTE JSON válido, sem markdown, comentários ou texto fora do JSON.':''}`;
+  }
+  function buildAiPrompt(action,userPrompt){
+    const node=selectedNodeContext(); const ctx=compactMapContext(); const extra=userPrompt?.trim()||'';
+    if(action==='create_map'){
+      const opt=aiMapOptions(), p=opt.profile;
+      const examplesInstruction=opt.examples==='yes'
+        ? `Inclua exemplos pedagógicos pertinentes. Coloque exemplos curtos nas notas dos conceitos importantes e, nos modos ${p.label==='Simples'?'mais profundos quando realmente necessário':'aprofundados'}, crie também alguns balões específicos de exemplo/aplicação quando isso ajudar a compreensão. Evite exemplos repetitivos.`
+        : `Não crie exemplos didáticos, casos ou aplicações exemplificativas, a menos que sejam indispensáveis para definir corretamente um conceito.`;
+      return `Crie um mapa mental/conceitual sobre: ${extra||'o tema informado pelo usuário'}.
+
+CONFIGURAÇÃO OBRIGATÓRIA:
+- Profundidade: ${p.label}.
+- Quantidade-alvo: entre ${p.minNodes} e ${p.maxNodes} balões. Não entregue um mapa menor que ${p.minNodes} balões salvo impossibilidade conceitual real.
+- Profundidade hierárquica: aproximadamente ${p.minDepth} a ${p.maxDepth} níveis.
+- Ramos principais a partir do tema central: ${p.mainBranches}.
+- Ramificação típica por tópico relevante: ${p.children} filhos, quando o conteúdo justificar.
+- Relações cruzadas úteis entre ramos: aproximadamente ${p.relations}.
+- Escopo: ${p.detail}.
+- Nível de linguagem: ${opt.educationInstruction}
+- Exemplos: ${examplesInstruction}
+
+REGRAS PEDAGÓGICAS E ESTRUTURAIS:
+1. Organize do geral para o específico, com hierarquia clara e equilibrada.
+2. Distribua o conteúdo entre vários ramos; não concentre quase tudo em um único ramo.
+3. Evite balões redundantes ou meramente decorativos.
+4. Use títulos de balão concisos. Coloque explicações adicionais no campo note.
+5. Cada note deve complementar o título, não apenas repeti-lo.
+6. Quando houver processos, preserve sequência lógica; quando houver classificações, separe categorias e subtipos.
+7. Para o modo ${p.label}, crie ramificações suficientes para que o mapa realmente reflita o nível escolhido.
+8. Não use coordenadas; o MapaFlex fará o layout.
+
+Retorne SOMENTE JSON válido neste formato exato:
+{"title":"...","mode":"mind","nodes":[{"key":"root","text":"Tema central","parent":null,"note":""},{"key":"n1","text":"...","parent":"root","note":"..."}],"relations":[{"from":"n1","to":"n2","label":"frase curta de relação"}]}.
+Use key única para cada nó. parent deve referenciar uma key existente. relations deve usar keys existentes.`;
+    }
+    if(action==='explain') return `Explique profundamente o balão selecionado, relacionando-o ao restante do mapa. Balão: ${JSON.stringify(node)}\nMapa: ${ctx}\nPedido adicional: ${extra}`;
+    if(action==='examples') return `Dê exemplos didáticos, clínicos, cotidianos ou científicos adequados ao balão selecionado. Balão: ${JSON.stringify(node)}\nMapa: ${ctx}\nPreferências: ${extra}`;
+    if(action==='questions') return `Crie questões de estudo sobre o balão selecionado e seus vínculos. Misture múltipla escolha, verdadeiro/falso e discursivas, com gabarito comentado no final. Balão: ${JSON.stringify(node)}\nMapa: ${ctx}\nInstruções: ${extra}`;
+    if(action==='connections') return `Analise o mapa e sugira relações úteis entre balões que ainda não estejam ligados. Retorne SOMENTE JSON: {"relations":[{"from":"id existente","to":"id existente","label":"frase curta","reason":"por que ligar"}]}. Use apenas IDs existentes. Mapa: ${ctx}\nCritério adicional: ${extra}`;
+    if(action==='doubt') return `Responda à dúvida do usuário usando o mapa como contexto e destacando como a resposta se encaixa na hierarquia. Dúvida: ${extra}\nBalão selecionado: ${JSON.stringify(node)}\nMapa: ${ctx}`;
+    if(action==='materials') return `Sugira livros, capítulos, termos de busca, tipos de artigo, cursos e vídeos úteis para estudar o balão selecionado. Priorize materiais reconhecidos e descreva o que procurar. Não invente URLs específicas não verificadas. Balão: ${JSON.stringify(node)}\nMapa: ${ctx}\nPreferências: ${extra}`;
+    if(action==='expand') return `Expanda o balão selecionado com 4 a 10 subtópicos. Retorne SOMENTE JSON: {"children":[{"text":"...","note":"..."}]}. Balão: ${JSON.stringify(node)}\nMapa: ${ctx}\nDireção: ${extra}`;
+    return `Atenda ao pedido a seguir usando o mapa como contexto. Pedido: ${extra}\nBalão selecionado: ${JSON.stringify(node)}\nMapa: ${ctx}`;
+  }
+  async function callAi(prompt,expectJson=false,maxTokens=7000){
+    const {provider,key,model}=aiConfig(); if(!key||!model) throw new Error('Informe a chave da API e o modelo.'); saveAiSessionConfig();
+    if(provider==='openai'){
+      const data=await fetchJsonOrThrow('https://api.openai.com/v1/responses',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify({model,instructions:aiSystemPrompt(expectJson),input:prompt,max_output_tokens:maxTokens})});
+      return extractOpenAiText(data);
+    }
+    const body={systemInstruction:{parts:[{text:aiSystemPrompt(expectJson)}]},contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:.25,maxOutputTokens:maxTokens}};
+    if(expectJson) body.generationConfig.responseMimeType='application/json';
+    const data=await fetchJsonOrThrow(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify(body)});
+    return extractGeminiText(data);
+  }
+  function parseAiJson(text){
+    let s=String(text||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
+    return JSON.parse(s);
+  }
+  function openAiResult(text,action,structured=null){
+    lastAiResult=String(text||'');lastAiAction=action;lastAiStructured=structured;
+    $('aiResult').textContent=lastAiResult||'Sem conteúdo.';$('aiModalTitle').textContent='Resposta da IA';$('aiModalSubtitle').textContent=action==='create_map'?`${$('aiAction').selectedOptions[0]?.textContent||''} • ${aiMapOptions().profile.label} • ${$('aiEducationLevel').selectedOptions[0]?.textContent||''}`:($('aiAction').selectedOptions[0]?.textContent||'');
+    $('aiApplyMap').style.display=action==='create_map'?'inline-flex':'none';
+    $('aiApplyRelations').style.display=(action==='connections'||action==='expand')?'inline-flex':'none';
+    $('aiApplyRelations').textContent=action==='expand'?'Criar subtópicos':'Aplicar relações';
+    $('aiModal').classList.add('visible');$('aiModal').setAttribute('aria-hidden','false');
+  }
+  function closeAiModal(){$('aiModal').classList.remove('visible');$('aiModal').setAttribute('aria-hidden','true');}
+  async function runAiAction(){
+    const action=$('aiAction').value, prompt=$('aiPrompt').value.trim();
+    if(['create_map','doubt','custom'].includes(action)&&!prompt){alert('Escreva o tema ou pedido para a IA.');return;}
+    if(!['create_map','doubt','custom'].includes(action)&&!selected){alert('Selecione um balão.');return;}
+    const expectJson=['create_map','connections','expand'].includes(action);
+    const mapOpt=action==='create_map'?aiMapOptions():null;
+    const maxTokens=mapOpt?.profile?.tokens||7000;
+    setAiStatus(action==='create_map'?`IA criando mapa ${mapOpt.profile.label.toLowerCase()}...`:'IA trabalhando...','busy');$('aiRun').disabled=true;
+    try{
+      const txt=await callAi(buildAiPrompt(action,prompt),expectJson,maxTokens);
+      const structured=expectJson?parseAiJson(txt):null;
+      if(action==='create_map' && structured?.nodes?.length){
+        const count=structured.nodes.length;
+        const min=mapOpt.profile.minNodes;
