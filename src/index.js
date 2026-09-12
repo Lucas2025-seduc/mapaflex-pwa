@@ -23,6 +23,15 @@ export default {
       return baseRes;
     }
 
-    return env.ASSETS.fetch(request);
+    const response = await env.ASSETS.fetch(request);
+    const isAppHtml = request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html') && (response.headers.get('content-type') || '').includes('text/html');
+    if (!isAppHtml) return response;
+
+    const html = await response.text();
+    const marker = '<script src="/mobile-ui-hotfix.js"></script><script src="/presentation-ux.js"></script>';
+    const body = html.includes(marker) ? html : html.replace('</body>', `${marker}</body>`);
+    const headers = new Headers(response.headers);
+    headers.set('Cache-Control', 'no-cache');
+    return new Response(body, { status: response.status, statusText: response.statusText, headers });
   }
 };
