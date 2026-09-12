@@ -1,0 +1,172 @@
+const json = (data, status = 200) => new Response(JSON.stringify(data), {
+  status,
+  headers: {
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store'
+  }
+});
+
+async function providerFetch(url, options = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120000);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    const text = await response.text();
+    let body;
+    try { body = JSON.parse(text); } catch { body = { raw: text.slice(0, 4000) }; }
+    if (!response.ok) {
+      const message = body?.error?.message || body?.message || body?.raw || `${response.status} ${response.statusText}`;
+      const error = new Error(message);
+      error.status = Math.min(599, Math.max(400, response.status));
+      throw error;
+    }
+    return body;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function isBlockedBaseUrl(parsed) {
+  const h = parsed.hostname.toLowerCase();
+  return parsed.protocol !== 'https:' || h === 'localhost' || h === '0.0.0.0' || h === '::1' || /^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h) || /^169\.254\./.test(h) || h.endsWith('.local');
+}
+
+async function handleAi(request, env) {
+  if (request.method !== 'POST') return json({ error: 'Método não permitido.' }, 405);
+
+  try {
+    const payload = await request.json().catch(() => ({}));
+    const { provider, key, model, action, system, user, json: wantsJson, baseUrl, maxTokens } = payload || {};
+
+    if (!['openai', 'gemini'].includes(provider)) return json({ error: 'Provedor inválido.' }, 400);
+    if (!['models', 'chat'].includes(action)) return json({ error: 'Ação inválida.' }, 400);
+
+    const envKey = provider === 'openai' ? env.OPENAI_API_KEY : env.GEMINI_API_KEY;
+    const effectiveKey = typeof key === 'string' && key.trim() ? key.trim() : envKey;
+    if (!effectiveKey || effectiveKey.length > 5000) {
+      return json({ error: `Chave de API ausente. Informe uma chave no app ou configure ${provider === 'openai' ? 'OPENAI_API_KEY' : 'GEMINI_API_KEY'} nos Secrets do Cloudflare Worker.` }, 400);
+    }
+
+    const outputLimit = Math.max(32, Math.min(32768, Number(maxTokens) || 7000));
+
+    if (provider === 'gemini') {
+      if (action === 'models') {
+        const body = await providerFetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(effectiveKey)}`);
+        const models = (body.models || [])
+          .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+          .map(m => String(m.name || '').replace('models/', ''))
+          .filter(Boolean);
+        return json({ models });
+      }
+
+      const chosen = String(model || 'gemini-2.5-flash').replace(/[^a-zA-Z0-9._-]/g, '');
+      const generationConfig = { temperature: 0.25, maxOutputTokens: outputLimit };
+      if (wantsJson) generationConfig.responseMimeType = 'application/json';
+
+      const body = await providerFetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(chosen)}:generateContent?key=${encodeURIComponent(effectiveKey)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: String(system || '').slice(0, 30000) }] },
+          contents: [{ role: 'user', parts: [{ text: String(user || '').slice(0, 120000) }] }],
+          generationConfig
+        })
+      });
+
+      const content = (body.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('\n').trim();
+      return json({ content });
+    }
+
+    let base = 'https://api.openai.com/v1';
+    if (baseUrl) {
+      const parsed = new URL(baseUrl);
+      if (isBlockedBaseUrl(parsed)) return json({ error: 'Base URL não permitida.' }, 400);
+      base = parsed.href.replace(/\/$/, '');
+    }
+
+    if (action === 'models') {
+      const body = await providerFetch(`${base}/models`, {
+        headers: { Authorization: `Bearer ${effectiveKey}` }
+      });
+      return json({ models: (body.data || []).map(m => m.id).filter(Boolean) });
+    }
+
+    const chosen = String(model || '').trim();
+    if (!chosen) return json({ error: 'Modelo ausente.' }, 400);
+
+    if (base === 'https://api.openai.com/v1') {
+      try {
+        const body = await providerFetch(`${base}/responses`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${effectiveKey}`
+          },
+          body: JSON.stringify({
+            model: chosen,
+            instructions: String(system || '').slice(0, 30000),
+            input: String(user || '').slice(0, 120000),
+            max_output_tokens: outputLimit
+          })
+        });
+
+        const content = typeof body.output_text === 'string'
+          ? body.output_text
+          : (body.output || []).flatMap(item => item.content || []).map(part => part.text || '').join('\n').trim();
+        return json({ content });
+      } catch (error) {
+        if (!/responses|unsupported|not found|404|endpoint/i.test(error.message || '') && error.status !== 404) throw error;
+      }
+    }
+
+    const requestBody = {
+      model: chosen,
+      messages: [
+        { role: 'system', content: String(system || '').slice(0, 30000) },
+        { role: 'user', content: String(user || '').slice(0, 120000) }
+      ],
+      max_tokens: outputLimit
+    };
+    if (wantsJson) requestBody.response_format = { type: 'json_object' };
+
+    let body;
+    try {
+      body = await providerFetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${effectiveKey}`
+        },
+        body: JSON.stringify(requestBody)
+      });
+    } catch (error) {
+      if (wantsJson && /response_format|json_object/i.test(error.message || '')) {
+        delete requestBody.response_format;
+        body = await providerFetch(`${base}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${effectiveKey}`
+          },
+          body: JSON.stringify(requestBody)
+        });
+      } else {
+        throw error;
+      }
+    }
+
+    return json({ content: body.choices?.[0]?.message?.content || '' });
+  } catch (error) {
+    const status = error?.name === 'AbortError' ? 504 : (error.status || 500);
+    return json({ error: error?.name === 'AbortError' ? 'A solicitação à IA excedeu o tempo limite.' : (error.message || 'Erro no proxy de IA.') }, status);
+  }
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.pathname === '/api/ai-proxy') return handleAi(request, env);
+    if (url.pathname.startsWith('/api/')) return json({ error: 'Rota de API não encontrada.' }, 404);
+    return env.ASSETS.fetch(request);
+  }
+};

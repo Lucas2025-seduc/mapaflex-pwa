@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#2563eb">
+<meta name="description" content="MapaFlex Ultimate — editor PWA de mapas mentais e conceituais com IA, multimídia, IndexedDB, apresentação e exportação vetorial.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<title>MapaFlex Ultimate — Mapas mentais e conceituais</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">Mapa<span>Flex</span> <span class="badge">ULTIMATE</span></div>
+    <input id="mapTitle" class="titleInput" value="Meu mapa" aria-label="Nome do mapa">
+    <div class="toolbar">
+      <button class="btn" id="modeMind">🧠 Mental</button>
+      <button class="btn" id="modeConcept">🔗 Conceitual</button>
+      <button class="btn primary" id="addChild">＋ Filho</button>
+      <button class="btn optional" id="addSibling">＋ Irmão</button>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn iconbtn" id="undo" title="Desfazer">↶</button>
+    <button class="btn iconbtn" id="redo" title="Refazer">↷</button>
+    <button class="btn" id="saveJson">💾 Salvar</button>
+    <button class="btn" id="loadJson">📂 Abrir</button>
+    <button class="btn optional" id="installApp" style="display:none">⬇ Instalar</button>
+    <button class="btn primary" id="print">📄 PDF</button>
+  </header>
+
+  <div class="main">
+    <aside class="sidebar">
+      <div class="section">
+        <h3>Criação rápida</h3>
+        <div class="toolgrid">
+          <button class="tool" id="quickChild">＋ <strong>Novo filho</strong><small>Tab</small></button>
+          <button class="tool" id="quickSibling">＋ <strong>Novo irmão</strong><small>Enter</small></button>
+          <button class="tool" id="quickDelete">🗑 <strong>Excluir</strong><small>Delete</small></button>
+          <button class="tool" id="quickConnect">↗ <strong>Conectar</strong><small>Relação</small></button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Organização</h3>
+        <div class="toolgrid">
+          <button class="tool" id="layoutRadial">◉ <strong>Radial</strong><small>Mapa mental</small></button>
+          <button class="tool" id="layoutTree">⇢ <strong>Hierárquico</strong><small>Esquerda → direita</small></button>
+          <button class="tool" id="collapseAll">⊟ <strong>Recolher</strong><small>Ramos</small></button>
+          <button class="tool" id="expandAll">⊞ <strong>Expandir</strong><small>Todos</small></button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Visualização</h3>
+        <div class="toolgrid">
+          <button class="tool" id="fit">⤢ <strong>Enquadrar</strong><small>Mapa inteiro</small></button>
+          <button class="tool" id="focus">◎ <strong>Foco</strong><small>Nó selecionado</small></button>
+          <button class="tool" id="toggleGrid"># <strong>Grade</strong><small>On / Off</small></button>
+          <button class="tool" id="presentation">▶ <strong>Apresentar</strong><small>Modo foco</small></button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Tema</h3>
+        <div class="field">
+          <select id="theme">
+            <option value="blue">Azul profissional</option>
+            <option value="teal">Verde petróleo</option>
+            <option value="purple">Roxo elegante</option>
+            <option value="gray">Cinza técnico</option>
+            <option value="warm">Âmbar discreto</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section help">
+        <b>Atalhos</b><br>
+        <span class="kbd">Tab</span> filho · <span class="kbd">Enter</span> irmão<br>
+        <span class="kbd">F2</span> editar · <span class="kbd">Delete</span> excluir<br>
+        <span class="kbd">Espaço</span> recolher · <span class="kbd">Ctrl+S</span> salvar<br>
+        Arraste o nó para reposicionar. Arraste o fundo para mover o mapa.
+      </div>
+    </aside>
+
+    <main class="canvasWrap" id="canvasWrap">
+      <div class="printOnly" id="printTitle">Meu mapa</div>
+      <svg id="svg" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"></path>
+          </marker>
+        </defs>
+        <g id="viewport"><g id="edges"></g><g id="labels"></g><g id="nodes"></g></g>
+      </svg>
+      <div class="overlay">
+        <button class="btn iconbtn" id="zoomOut">−</button><div class="zoomlabel" id="zoomLabel">100%</div><button class="btn iconbtn" id="zoomIn">＋</button><button class="btn" id="center">◎</button>
+      </div>
+      <div class="status" id="status">0 nós</div>
+      <div class="nodeToolbar" id="nodeToolbar">
+        <button id="tbBold" title="Negrito"><b>B</b></button><button id="tbItalic" title="Itálico"><i>I</i></button><button id="tbColor" title="Cor do balão">🎨</button><button id="tbLink" title="Adicionar link">🔗</button><button id="tbImage" title="Adicionar imagem">🖼</button><button id="tbRemoveImage" title="Remover imagem">✕ Img</button><button id="tbDone" title="Concluir edição">✓</button>
+      </div>
+      <input type="file" id="imageInput" accept="image/*" hidden>
+      <div class="contextmenu" id="contextMenu">
+        <button id="ctxEdit">✎ Editar</button><button id="ctxChild">＋ Adicionar filho</button><button id="ctxSibling">＋ Adicionar irmão</button><button id="ctxConnect">↗ Criar relação</button><button id="ctxDelete">🗑 Excluir</button>
+      </div>
+      <div class="presentationPanel" id="presentationPanel">
+        <button class="btn iconbtn" id="presentPrev" title="Anterior">←</button><div class="presentationCounter" id="presentationCounter">0 / 0</div><div class="presentationTitle" id="presentationTitle">Apresentação</div><button class="btn iconbtn" id="presentNext" title="Próximo">→</button><button class="btn" id="presentExit" title="Sair da apresentação">✕ Sair</button>
+      </div>
+      <div class="presentationMedia" id="presentationMedia">
+        <div class="presentationMediaHead"><div class="presentationStepLabel" id="presentationStepLabel">Fase atual</div><div class="presentationPath" id="presentationPath">Tema central</div></div>
+        <div class="presentationMediaBody" id="presentationMediaBody"><div class="presentationMediaEmpty">Este balão não possui imagem nem vídeo.</div></div>
+        <div class="presentationMediaCaption" id="presentationMediaCaption">Sem mídia associada.</div>
+      </div>
+      <div class="imageModal" id="imageModal" aria-hidden="true">
+        <div class="imageModalCard"><div class="imageModalHead"><div><div class="imageModalTitle" id="imageModalTitle">Imagem do balão</div><div class="imageHint">Use os botões de zoom, a roda do mouse ou arraste para ver detalhes. Pressione Esc para fechar.</div></div><div class="imageModalToolbar"><button class="btn iconbtn" id="imageZoomOut">−</button><div class="imageZoomLabel" id="imageZoomLabel">100%</div><button class="btn iconbtn" id="imageZoomIn">＋</button><button class="btn" id="imageZoomReset">Ajustar</button><button class="btn" id="imageModalClose">Fechar</button></div></div><div class="imageModalBody"><div class="imageModalViewport" id="imageModalViewport"><div class="imageModalStage" id="imageModalStage"><img id="imageModalImg" alt="Imagem ampliada do balão"></div></div></div></div>
+      </div>
+      <div class="mediaModal" id="mediaModal" aria-hidden="true"><div class="mediaCard"><div class="mediaHead"><div><b id="mediaModalTitle">Arquivo</b><div class="help" id="mediaModalMeta"></div></div><div style="display:flex;gap:6px"><button class="btn" id="mediaDownload">⬇ Salvar arquivo</button><button class="btn" id="mediaModalClose">Fechar</button></div></div><div class="mediaBody" id="mediaModalBody"></div></div></div>
+      <div class="aiModal" id="aiModal" aria-hidden="true"><div class="aiCard"><div class="aiHead"><div><b id="aiModalTitle">Resposta da IA</b><div class="help" id="aiModalSubtitle"></div></div><button class="btn" id="aiModalClose">Fechar</button></div><div class="aiBody"><div class="aiResult" id="aiResult"></div></div><div class="aiActions"><button class="btn" id="aiSaveNote">Salvar na nota</button><button class="btn" id="aiCreateChild">Criar balão filho</button><button class="btn primary" id="aiApplyMap" style="display:none">Aplicar mapa</button><button class="btn primary" id="aiApplyRelations" style="display:none">Aplicar relações</button></div></div></div>
+    </main>
+
+    <aside class="inspector">
+      <div class="section">
+        <h3>Nó selecionado</h3><div id="noSelection" class="empty">Selecione um nó para editar suas propriedades.</div>
+        <div id="nodeForm" style="display:none">
+          <div class="field"><label>Título</label><input id="nodeTextInput"></div>
+          <div class="field"><label>Tipo</label><select id="nodeShape"><option value="rounded">Cartão arredondado</option><option value="pill">Pílula</option><option value="box">Caixa técnica</option></select></div>
+          <div class="field"><label>Cor</label><div class="colorrow" id="colors"></div></div>
+          <div class="field"><label>Nota</label><textarea id="nodeNote" placeholder="Observações, fonte, evidência ou detalhes..."></textarea></div>
+          <div class="field"><label>Link</label><input id="nodeLink" placeholder="https://..."></div>
+          <div class="field"><label>Ordem da apresentação</label><input id="nodePresentOrder" type="number" min="1" step="1" placeholder="Ex.: 1"><div class="help">Use números para definir a sequência de foco no modo apresentação.</div></div>
+          <div class="field"><label>Imagem</label><div style="display:flex;gap:6px"><button class="btn" id="inspectorImage">🖼 Inserir</button><button class="btn" id="inspectorRemoveImage">✕ Remover</button></div></div>
+          <div class="field"><label>Arquivos e áudio</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="attachFile">📎 PDF / PowerPoint / Áudio</button><button class="btn" id="recordAudio">🎙 Gravar</button><button class="btn danger" id="stopRecording" style="display:none">■ Parar</button></div><div id="recordStatus" class="help"></div><div id="attachmentList" class="attachmentList"></div><div class="help">PDF abre no visualizador; PowerPoint pode ser salvo/aberto externamente; áudio pode ser reproduzido. Os arquivos são armazenados localmente no <b>IndexedDB</b>; ao exportar o backup JSON, os anexos são incorporados ao backup para transporte.</div></div>
+          <div class="hr"></div><div class="field"><label>Relações</label><button class="btn" id="makeRelation">↗ Conectar este nó a outro</button></div>
+        </div>
+      </div>
+      <div class="section"><h3>Mapa</h3><div class="field"><label>Modo atual</label><div id="modeDisplay" class="help">Mapa mental</div></div><div class="field"><label>Salvar automaticamente</label><div class="help">O mapa é guardado neste navegador enquanto você trabalha.</div></div></div>
+      <div class="section">
+        <h3>Assistente de IA</h3>
+        <div class="field"><label>Provedor</label><select id="aiProvider"><option value="openai">OpenAI / ChatGPT API</option><option value="gemini">Google Gemini API</option></select></div>
+        <div class="field"><label>Chave da API</label><input id="aiApiKey" type="password" autocomplete="off" placeholder="Cole a chave aqui"><div class="help">A chave fica somente nesta sessão do navegador e não é incluída no mapa ou no JSON. As chamadas passam pelo proxy do próprio Vercel para reduzir problemas de CORS.</div></div>
+        <label class="check-row" style="margin:-2px 0 10px"><input id="aiServerKey" type="checkbox" style="width:auto"> Usar chave configurada no servidor Vercel (OPENAI_API_KEY / GEMINI_API_KEY)</label>
+        <div class="field"><label>Modelo</label><input id="aiModel" value="gpt-5.6-sol" placeholder="Modelo da API"></div>
+        <div style="display:flex;gap:6px;margin-bottom:8px"><button class="btn" id="aiTest">✓ Testar chave e modelo</button><button class="btn" id="aiClearKey">Limpar chave</button></div><div id="aiStatus" class="aiStatus">Não testado.</div><div class="hr"></div>
+        <div class="field"><label>Ação</label><select id="aiAction"><option value="create_map">Criar mapa completo</option><option value="explain">Explicar o balão selecionado</option><option value="examples">Dar exemplos</option><option value="questions">Criar questões</option><option value="connections">Sugerir integração entre balões</option><option value="doubt">Tirar dúvida</option><option value="materials">Sugerir materiais e vídeos</option><option value="expand">Expandir o balão com novos tópicos</option><option value="custom">Pedido livre</option></select></div>
+        <div id="aiMapOptions"><div class="field"><label>Profundidade do mapa</label><select id="aiMapDepth"><option value="simple">Simples</option><option value="deep" selected>Aprofundado</option><option value="superdeep">Superaprofundado</option><option value="extended">Completo / estendido</option></select><div class="help" id="aiMapDepthHelp">Mapa detalhado, com vários níveis e ramificações.</div></div><div class="field"><label>Nível de linguagem</label><select id="aiEducationLevel"><option value="fundamental">Ensino fundamental</option><option value="medio">Ensino médio</option><option value="superior" selected>Ensino superior / graduação</option><option value="pos">Pós-graduação / nível avançado</option></select></div><div class="field"><label>Exemplos</label><select id="aiMapExamples"><option value="no">Sem exemplos</option><option value="yes" selected>Com exemplos</option></select><div class="help">Quando ativado, a IA inclui exemplos didáticos nas notas e, nos modos mais profundos, também em ramificações próprias quando forem úteis.</div></div></div>
+        <div class="field"><label>Pedido / tema</label><textarea id="aiPrompt" placeholder="Ex.: Metabolismo celular, enfatizando glicólise, ciclo de Krebs e regulação hormonal..."></textarea></div><button class="btn primary" id="aiRun" style="width:100%;justify-content:center">🤖 Executar IA</button><div class="aiWarning" style="margin-top:8px">Para uso em produção, prefira a chave configurada no servidor Vercel. Se digitar uma chave no app, ela fica apenas nesta sessão do navegador.</div>
+      </div>
+      <div class="section"><h3>Importar / exportar</h3><div class="toolgrid"><button class="tool" id="exportSvg">SVG<strong>Exportar</strong><small>Vetorial</small></button><button class="tool" id="exportPng">PNG<strong>Exportar</strong><small>Imagem</small></button><button class="tool" id="exportPdf">PDF<strong>Exportar</strong><small>Alta resolução</small></button><button class="tool" id="exportJson2">JSON<strong>Exportar</strong><small>Backup</small></button><button class="tool" id="importJson2">JSON<strong>Importar</strong><small>Backup</small></button></div></div>
+    </aside>
+  </div>
+</div>
+<input type="file" id="fileInput" accept=".json,application/json" hidden>
+<input type="file" id="attachmentInput" accept=".pdf,.ppt,.pptx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,audio/*" multiple hidden>
+<script src="/app-core-1.js"></script>
+<script src="/app-core-2.js"></script>
+<script src="/app-core-3.js"></script>
+<script src="/app-media.js"></script>
+<script src="/app-ai-1.js"></script>
+<script src="/app-ai-2.js"></script>
+<script src="/app-ai-3.js"></script>
+<script src="/app-ai-4.js"></script>
+<script src="/app-export.js"></script>
+<script src="/pwa.js"></script>
+</body>
+</html>
