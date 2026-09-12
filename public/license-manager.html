@@ -5,32 +5,54 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MapaFlex — Gerenciador Seguro de Licenças</title>
 <style>
-:root{font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;color:#0f172a;background:#f8fafc}*{box-sizing:border-box}body{margin:0}.wrap{max-width:1180px;margin:auto;padding:24px}.head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}.head h1{font-size:24px;margin:0;flex:1}.btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;background:#e2e8f0;color:#0f172a;text-decoration:none}.btn.primary{background:#2563eb;color:#fff}.btn.danger{background:#fee2e2;color:#991b1b}.btn.green{background:#16a34a;color:#fff}.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;box-shadow:0 6px 24px rgba(15,23,42,.05);margin-bottom:14px}.status{padding:10px 12px;border-radius:10px;background:#f1f5f9;font-size:13px}.status.good{background:#dcfce7;color:#166534}.status.warn{background:#fef3c7;color:#92400e}.status.bad{background:#fee2e2;color:#991b1b}.login{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}.login input,.field input,.field select,.search{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}.tableWrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:980px}th,td{text-align:left;padding:10px;border-bottom:1px solid #e2e8f0;vertical-align:top}th{font-size:12px;text-transform:uppercase;color:#64748b}.muted{color:#64748b;font-size:12px}.userId{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;word-break:break-all}.pill{display:inline-block;border-radius:999px;padding:3px 8px;background:#e2e8f0;font-size:11px;font-weight:700}.pill.active{background:#dcfce7;color:#166534}.pill.revoked,.pill.suspended,.pill.expired{background:#fee2e2;color:#991b1b}.editor{display:grid;grid-template-columns:130px 180px 100px 110px 120px auto;gap:6px;align-items:end}.editor label{display:block;font-size:11px;color:#64748b;margin-bottom:3px}.check{display:flex;align-items:center;gap:6px;font-size:12px;height:38px}.hidden{display:none!important}.secure{margin-bottom:14px;padding:12px;border-radius:12px;background:#ecfdf5;color:#166534;font-size:13px;line-height:1.5}.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.step{background:#eff6ff;border:1px solid #dbeafe;border-radius:12px;padding:12px;font-size:13px;line-height:1.4}.step b{display:block;margin-bottom:4px}.toptools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.toptools .search{max-width:360px}@media(max-width:850px){.steps{grid-template-columns:1fr 1fr}}@media(max-width:720px){.login{grid-template-columns:1fr}.wrap{padding:12px}.head h1{font-size:20px}.steps{grid-template-columns:1fr}}
+:root{font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;color:#0f172a;background:#f8fafc}*{box-sizing:border-box}body{margin:0}.wrap{max-width:1220px;margin:auto;padding:24px}.head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}.head h1{font-size:24px;margin:0;flex:1}.btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;background:#e2e8f0;color:#0f172a;text-decoration:none}.btn.primary{background:#2563eb;color:#fff}.btn.danger{background:#fee2e2;color:#991b1b}.btn.green{background:#16a34a;color:#fff}.btn:disabled{opacity:.55;cursor:wait}.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;box-shadow:0 6px 24px rgba(15,23,42,.05);margin-bottom:14px}.status{padding:10px 12px;border-radius:10px;background:#f1f5f9;font-size:13px}.status.good{background:#dcfce7;color:#166534}.status.warn{background:#fef3c7;color:#92400e}.status.bad{background:#fee2e2;color:#991b1b}.login{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}.login input,.field input,.field select,.search{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}.tableWrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:940px}th,td{text-align:left;padding:10px;border-bottom:1px solid #e2e8f0;vertical-align:top}th{font-size:12px;text-transform:uppercase;color:#64748b}.muted{color:#64748b;font-size:12px}.userId,.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;word-break:break-all}.pill{display:inline-block;border-radius:999px;padding:3px 8px;background:#e2e8f0;font-size:11px;font-weight:700}.pill.active,.pill.available,.pill.redeemed{background:#dcfce7;color:#166534}.pill.revoked,.pill.suspended,.pill.expired{background:#fee2e2;color:#991b1b}.editor{display:grid;grid-template-columns:130px 180px 100px 110px 120px auto;gap:6px;align-items:end}.editor label{display:block;font-size:11px;color:#64748b;margin-bottom:3px}.check{display:flex;align-items:center;gap:6px;font-size:12px;height:38px}.hidden{display:none!important}.secure{margin-bottom:14px;padding:12px;border-radius:12px;background:#ecfdf5;color:#166534;font-size:13px;line-height:1.5}.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.step{background:#eff6ff;border:1px solid #dbeafe;border-radius:12px;padding:12px;font-size:13px;line-height:1.4}.step b{display:block;margin-bottom:4px}.toptools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.toptools .search{max-width:360px}.generator{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:end}.field label{display:block;font-size:11px;color:#64748b;margin-bottom:4px}.generated{margin-top:12px;border:1px solid #86efac;background:#f0fdf4;border-radius:12px;padding:14px}.generated .code{font-size:15px;font-weight:800;color:#14532d;background:#fff;border:1px dashed #86efac;border-radius:9px;padding:10px;margin:8px 0}.generated-actions{display:flex;gap:8px;flex-wrap:wrap}.sectionTitle{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}.sectionTitle strong{font-size:16px}.notice{font-size:12px;color:#64748b;line-height:1.45}.keysTable{min-width:1020px}@media(max-width:1000px){.generator{grid-template-columns:1fr 1fr 1fr}.steps{grid-template-columns:1fr 1fr}}@media(max-width:720px){.login,.generator{grid-template-columns:1fr}.wrap{padding:12px}.head h1{font-size:20px}.steps{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="head"><h1>Gerenciador Seguro de Licenças MapaFlex</h1><a class="btn" href="/">Abrir MapaFlex</a><a class="btn green" href="/MapaFlex-Gerenciador-de-Licencas.html" download="MapaFlex-Gerenciador-de-Licencas.html">⬇ Baixar gerenciador</a><button class="btn" id="refreshBtn" type="button">Atualizar</button><button class="btn danger hidden" id="signOutBtn" type="button">Sair</button></div>
 
-  <div class="secure">🔒 O painel exige conta administrativa. O arquivo baixado é apenas um atalho seguro: ele não contém senha, chave do banco nem segredo de pagamento. Clientes comuns não conseguem listar usuários nem alterar licenças.</div>
+  <div class="secure">🔒 Os códigos são gerados no servidor com aleatoriedade criptográfica. O banco guarda somente o hash SHA-256; o código completo aparece uma única vez na geração. Clientes comuns não podem gerar, listar ou revogar códigos.</div>
 
   <div class="card">
     <strong>Fluxo simples de venda</strong>
     <div class="steps" style="margin-top:10px">
       <div class="step"><b>1. Cliente cria a conta</b>O cliente entra no MapaFlex com e-mail e senha.</div>
-      <div class="step"><b>2. Fala pelo WhatsApp</b>O botão do app envia o e-mail e o ID da conta para o contato 88 99361992.</div>
-      <div class="step"><b>3. Você confirma a compra</b>Combine e confirme o pagamento diretamente com o cliente. Nunca peça a senha da conta.</div>
-      <div class="step"><b>4. Você ativa aqui</b>Localize o cliente, escolha validade e recursos e clique em Salvar.</div>
+      <div class="step"><b>2. Confirma a compra</b>Combine o pagamento pelo WhatsApp 88 99361992. Nunca peça a senha.</div>
+      <div class="step"><b>3. Você gera o código</b>Escolha validade, dispositivos e recursos. O código aparece uma única vez.</div>
+      <div class="step"><b>4. Cliente ativa</b>O cliente cola o código no app. Ele fica vinculado àquela conta e não pode ser reutilizado.</div>
     </div>
   </div>
 
   <div class="card" id="loginCard">
-    <div class="login"><input id="email" type="email" placeholder="E-mail do administrador"><input id="password" type="password" placeholder="Senha"><button class="btn primary" id="loginBtn" type="button">Entrar</button></div>
+    <div class="login"><input id="email" type="email" autocomplete="username" placeholder="E-mail do administrador"><input id="password" type="password" autocomplete="current-password" placeholder="Senha"><button class="btn primary" id="loginBtn" type="button">Entrar</button></div>
   </div>
   <div id="status" class="status">Carregando…</div>
-  <div class="card hidden" id="managerCard">
-    <div class="toptools"><strong>Usuários e licenças</strong><input id="searchUser" class="search" type="search" placeholder="Buscar por nome, e-mail ou ID da conta"><span class="muted">Ative, renove, suspenda ou revogue.</span></div>
-    <div class="tableWrap"><table><thead><tr><th>Usuário</th><th>Licença atual</th><th>Configuração</th></tr></thead><tbody id="rows"></tbody></table></div>
+
+  <div id="adminArea" class="hidden">
+    <div class="card">
+      <div class="sectionTitle"><strong>Gerar código de licença</strong><span class="muted">128 bits de aleatoriedade · uso único · hash no banco</span></div>
+      <div class="generator">
+        <div class="field"><label>Validade da licença</label><select id="keyValidity"><option value="30">30 dias</option><option value="365">1 ano</option><option value="lifetime">Vitalícia</option><option value="custom">Personalizada</option></select></div>
+        <div class="field hidden" id="customDaysWrap"><label>Dias</label><input id="customDays" type="number" min="1" max="3650" value="90"></div>
+        <div class="field"><label>Prazo para ativar</label><select id="activationDays"><option value="7">7 dias</option><option value="30">30 dias</option><option value="90">90 dias</option></select></div>
+        <div class="field"><label>Dispositivos</label><input id="keyDevices" type="number" min="1" max="20" value="2"></div>
+        <label class="check"><input id="keyAi" type="checkbox" checked> IA Premium</label>
+        <label class="check"><input id="keyExport" type="checkbox" checked> Exportação</label>
+        <button class="btn primary" id="generateKeyBtn" type="button">Gerar licença</button>
+      </div>
+      <div id="generatedBox" class="generated hidden"><strong>Código gerado — copie agora</strong><div class="notice">Por segurança, o código completo não poderá ser recuperado depois que esta caixa for fechada ou a página for recarregada.</div><div class="code" id="generatedCode"></div><div class="generated-actions"><button class="btn primary" id="copyGenerated" type="button">Copiar código</button><a class="btn green" id="whatsappGenerated" target="_blank" rel="noopener noreferrer">Enviar pelo WhatsApp</a></div></div>
+    </div>
+
+    <div class="card">
+      <div class="sectionTitle"><strong>Códigos gerados</strong><span class="muted">Somente parte do código é exibida depois da geração.</span></div>
+      <div class="tableWrap"><table class="keysTable"><thead><tr><th>Código</th><th>Status</th><th>Plano</th><th>Validade</th><th>Ativar até</th><th>Cliente</th><th>Ação</th></tr></thead><tbody id="keyRows"></tbody></table></div>
+    </div>
+
+    <div class="card" id="managerCard">
+      <div class="toptools"><strong>Usuários e licenças</strong><input id="searchUser" class="search" type="search" placeholder="Buscar por nome, e-mail ou ID da conta"><span class="muted">Também é possível ajustar manualmente uma conta.</span></div>
+      <div class="tableWrap"><table><thead><tr><th>Usuário</th><th>Licença atual</th><th>Configuração</th></tr></thead><tbody id="rows"></tbody></table></div>
+    </div>
   </div>
 </div>
 <script type="module">
@@ -38,47 +60,85 @@ const AUTH_URL='https://ep-square-paper-aceqdgpa.neonauth.sa-east-1.aws.neon.tec
 const DATA_URL='https://ep-square-paper-aceqdgpa.apirest.sa-east-1.aws.neon.tech/neondb/rest/v1';
 const mod=await import('https://esm.sh/@neondatabase/neon-js@0.7.0-beta?bundle');
 const client=mod.createClient({auth:{url:AUTH_URL},dataApi:{url:DATA_URL,options:{db:{schema:'mapaflex'}}}});
-const $=s=>document.querySelector(s), status=$('#status'), rows=$('#rows'), manager=$('#managerCard'), loginCard=$('#loginCard'), signOut=$('#signOutBtn');
+const $=s=>document.querySelector(s),status=$('#status'),rows=$('#rows'),keyRows=$('#keyRows'),adminArea=$('#adminArea'),loginCard=$('#loginCard'),signOut=$('#signOutBtn');
 let allUsers=[];
 function setStatus(msg,kind=''){status.className='status '+kind;status.textContent=msg;}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 async function rpc(name,args={}){const r=await client.rpc(name,args);if(r?.error)throw new Error(r.error.message||String(r.error));return r?.data??r;}
-async function session(){const r=await client.auth.getSession();return r?.data?.user||r?.user||r?.data?.session?.user||r?.session?.user||null;}
+async function session(){const r=await client.auth.getSession();if(r?.error)throw new Error(r.error.message||'Falha ao consultar sessão.');return r?.data?.user||r?.user||r?.data?.session?.user||r?.session?.user||null;}
+function scalarBool(v,key){if(typeof v==='boolean')return v;if(Array.isArray(v)){const x=v[0];return typeof x==='boolean'?x:Boolean(x?.[key]??x);}return Boolean(v?.[key]??v);}
+function rowsFrom(v){return Array.isArray(v)?v:(Array.isArray(v?.data)?v.data:[]);}
+function fmtDate(v){if(!v)return'-';try{return new Date(v).toLocaleString('pt-BR');}catch{return String(v);}}
+
 async function refresh(){
   try{
     const user=await session();
-    if(!user){loginCard.classList.remove('hidden');manager.classList.add('hidden');signOut.classList.add('hidden');setStatus('Entre com a conta administradora.');return;}
+    if(!user){loginCard.classList.remove('hidden');adminArea.classList.add('hidden');signOut.classList.add('hidden');setStatus('Entre com a conta administradora.');return;}
     loginCard.classList.add('hidden');signOut.classList.remove('hidden');
-    const isAdmin=await rpc('is_license_admin');
-    const admin=Array.isArray(isAdmin)?Boolean(isAdmin[0]):Boolean(isAdmin);
-    if(!admin){manager.classList.add('hidden');setStatus('Conta autenticada, mas sem permissão de administrador de licenças.','warn');return;}
-    const data=await rpc('admin_list_users');
-    allUsers=Array.isArray(data)?data:[];render(allUsers);manager.classList.remove('hidden');setStatus('Gerenciador carregado com segurança.','good');
-  }catch(e){manager.classList.add('hidden');setStatus(e.message||'Falha ao carregar o gerenciador.','bad');}
+    const check=await rpc('is_license_admin');
+    if(!scalarBool(check,'is_license_admin')){adminArea.classList.add('hidden');setStatus('Conta autenticada, mas sem permissão de administrador de licenças.','warn');return;}
+    const [users,keys]=await Promise.all([rpc('admin_list_users'),rpc('admin_list_license_keys')]);
+    allUsers=rowsFrom(users);renderUsers(allUsers);renderKeys(rowsFrom(keys));
+    adminArea.classList.remove('hidden');setStatus('Gerenciador carregado com segurança.','good');
+  }catch(e){adminArea.classList.add('hidden');setStatus(e.message||'Falha ao carregar o gerenciador.','bad');}
 }
-function render(data){
+
+function renderKeys(data){
+  keyRows.innerHTML=data.map(k=>{
+    const statusClass=esc(k.status||'');
+    const validity=k.validity_days==null?'Vitalícia':`${esc(k.validity_days)} dias`;
+    const client=k.redeemed_email?`<strong>${esc(k.redeemed_name||'')}</strong><div>${esc(k.redeemed_email)}</div><div class="userId">${esc(k.redeemed_user_id||'')}</div>`:'—';
+    const action=k.status==='available'?`<button class="btn danger revokeKey" data-id="${esc(k.license_key_id)}" type="button">Revogar</button>`:'—';
+    return `<tr><td><div class="code">${esc(k.code_hint)}</div><div class="muted">#${esc(k.license_key_id)} · criado ${fmtDate(k.created_at)}</div></td><td><span class="pill ${statusClass}">${statusClass||'-'}</span></td><td>${esc(k.plan_code||'-')}<div class="muted">IA ${k.premium_ai?'sim':'não'} · Exportação ${k.advanced_export?'sim':'não'} · ${esc(k.max_devices)} disp.</div></td><td>${validity}</td><td>${fmtDate(k.activation_expires_at)}</td><td>${client}</td><td>${action}</td></tr>`;
+  }).join('')||'<tr><td colspan="7">Nenhum código gerado ainda.</td></tr>';
+  keyRows.querySelectorAll('.revokeKey').forEach(btn=>btn.addEventListener('click',()=>revokeKey(btn)));
+}
+
+function renderUsers(data){
   rows.innerHTML=data.map(u=>{
     const valid=u.valid_until?String(u.valid_until).slice(0,10):'';
     const statusClass=['active'].includes(u.license_status)?'active':(u.license_status||'');
     return `<tr data-user="${esc(u.user_id)}"><td><strong>${esc(u.name||'Sem nome')}</strong><div>${esc(u.email||'')}</div><div class="userId">${esc(u.user_id)}</div></td><td><span class="pill ${esc(statusClass)}">${esc(u.license_status||'sem licença')}</span><div class="muted">Plano: ${esc(u.plan_code||'-')} · Dispositivos: ${esc(u.max_devices??'-')}</div><div class="muted">Validade: ${esc(valid||'sem expiração')}</div><div class="muted">IA: ${u.premium_ai?'sim':'não'} · Exportação: ${u.advanced_export?'sim':'não'}</div></td><td><div class="editor"><div class="field"><label>Status</label><select class="st"><option value="active">Ativa</option><option value="grace">Tolerância</option><option value="suspended">Suspensa</option><option value="revoked">Revogada</option><option value="expired">Expirada</option></select></div><div class="field"><label>Validade</label><input class="until" type="date" value="${esc(valid)}"></div><div class="field"><label>Dispositivos</label><input class="devices" type="number" min="1" max="20" value="${esc(u.max_devices||2)}"></div><label class="check"><input class="ai" type="checkbox" ${u.premium_ai?'checked':''}> IA Premium</label><label class="check"><input class="export" type="checkbox" ${u.advanced_export?'checked':''}> Exportação</label><button class="btn primary save" type="button">Salvar</button></div></td></tr>`;
   }).join('')||'<tr><td colspan="3">Nenhum usuário encontrado.</td></tr>';
-  rows.querySelectorAll('tr[data-user]').forEach(tr=>{
-    const u=data.find(x=>String(x.user_id)===tr.dataset.user);if(u?.license_status)tr.querySelector('.st').value=u.license_status;
-    tr.querySelector('.save').addEventListener('click',()=>saveRow(tr));
-  });
+  rows.querySelectorAll('tr[data-user]').forEach(tr=>{const u=data.find(x=>String(x.user_id)===tr.dataset.user);if(u?.license_status)tr.querySelector('.st').value=u.license_status;tr.querySelector('.save').addEventListener('click',()=>saveRow(tr));});
 }
+
+async function generateKey(){
+  const btn=$('#generateKeyBtn');btn.disabled=true;setStatus('Gerando código seguro…');
+  try{
+    const mode=$('#keyValidity').value;
+    const validity=mode==='lifetime'?null:Number(mode==='custom'?$('#customDays').value:mode);
+    if(validity!==null&&(!Number.isInteger(validity)||validity<1||validity>3650))throw new Error('Validade deve ficar entre 1 e 3650 dias.');
+    const devices=Number($('#keyDevices').value||2);if(!Number.isInteger(devices)||devices<1||devices>20)throw new Error('Dispositivos deve ficar entre 1 e 20.');
+    const data=await rpc('admin_generate_license',{p_plan_code:'pro',p_validity_days:validity,p_max_devices:devices,p_premium_ai:$('#keyAi').checked,p_advanced_export:$('#keyExport').checked,p_activation_days:Number($('#activationDays').value||7)});
+    const row=rowsFrom(data)[0]||data?.[0]||data;
+    const code=row?.license_code;if(!code)throw new Error('O servidor não retornou o código gerado.');
+    $('#generatedCode').textContent=code;$('#generatedBox').classList.remove('hidden');
+    const msg=`Olá! Segue seu código de licença MapaFlex Pro:\n\n${code}\n\nEntre no MapaFlex com a sua conta e use “Ativar código”. O código é de uso único e não deve ser compartilhado.`;
+    $('#whatsappGenerated').href=`https://wa.me/558899361992?text=${encodeURIComponent(msg)}`;
+    setStatus('Código criado. Copie agora: o banco armazena somente o hash.','good');
+    const keys=await rpc('admin_list_license_keys');renderKeys(rowsFrom(keys));
+  }catch(e){setStatus(e.message||'Falha ao gerar licença.','bad');}finally{btn.disabled=false;}
+}
+
+async function revokeKey(btn){
+  if(!confirm('Revogar este código ainda não utilizado? Depois disso ele não poderá ser ativado.'))return;
+  btn.disabled=true;setStatus('Revogando código…');
+  try{const out=await rpc('admin_revoke_license_key',{p_license_key_id:Number(btn.dataset.id)});if(!scalarBool(out,'admin_revoke_license_key'))throw new Error('O código não pôde ser revogado.');setStatus('Código revogado.','good');const keys=await rpc('admin_list_license_keys');renderKeys(rowsFrom(keys));}catch(e){setStatus(e.message||'Falha ao revogar.','bad');}finally{btn.disabled=false;}
+}
+
 async function saveRow(tr){
   const btn=tr.querySelector('.save');btn.disabled=true;setStatus('Salvando licença…');
-  try{
-    const date=tr.querySelector('.until').value;
-    const result=await rpc('admin_set_license',{p_auth_user_id:tr.dataset.user,p_status:tr.querySelector('.st').value,p_valid_until:date?new Date(date+'T23:59:59Z').toISOString():null,p_max_devices:Number(tr.querySelector('.devices').value||2),p_premium_ai:tr.querySelector('.ai').checked,p_advanced_export:tr.querySelector('.export').checked});
-    if(!result)throw new Error('Operação não autorizada.');setStatus('Licença atualizada. O cliente já pode clicar em “Atualizar licença” no app.','good');await refresh();
-  }catch(e){setStatus(e.message||'Falha ao salvar licença.','bad');}finally{btn.disabled=false;}
+  try{const date=tr.querySelector('.until').value;const result=await rpc('admin_set_license',{p_auth_user_id:tr.dataset.user,p_status:tr.querySelector('.st').value,p_valid_until:date?new Date(date+'T23:59:59Z').toISOString():null,p_max_devices:Number(tr.querySelector('.devices').value||2),p_premium_ai:tr.querySelector('.ai').checked,p_advanced_export:tr.querySelector('.export').checked});if(!scalarBool(result,'admin_set_license'))throw new Error('Operação não autorizada.');setStatus('Licença atualizada.','good');await refresh();}catch(e){setStatus(e.message||'Falha ao salvar licença.','bad');}finally{btn.disabled=false;}
 }
+
 $('#loginBtn').addEventListener('click',async()=>{setStatus('Entrando…');try{const r=await client.auth.signIn.email({email:$('#email').value.trim(),password:$('#password').value});if(r?.error)throw new Error(r.error.message||'Falha no login.');await refresh();}catch(e){setStatus(e.message||'Falha no login.','bad');}});
 $('#refreshBtn').addEventListener('click',refresh);
-$('#searchUser').addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();if(!q){render(allUsers);return;}render(allUsers.filter(u=>[u.name,u.email,u.user_id].some(v=>String(v||'').toLowerCase().includes(q))));});
-signOut.addEventListener('click',async()=>{try{await client.auth.signOut();}catch{}await refresh();});
+$('#generateKeyBtn').addEventListener('click',generateKey);
+$('#keyValidity').addEventListener('change',()=>$('#customDaysWrap').classList.toggle('hidden',$('#keyValidity').value!=='custom'));
+$('#copyGenerated').addEventListener('click',async()=>{const code=$('#generatedCode').textContent.trim();try{await navigator.clipboard.writeText(code);setStatus('Código copiado.','good');}catch{setStatus('Não foi possível copiar automaticamente.','warn');}});
+$('#searchUser').addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();if(!q){renderUsers(allUsers);return;}renderUsers(allUsers.filter(u=>[u.name,u.email,u.user_id].some(v=>String(v||'').toLowerCase().includes(q))));});
+signOut.addEventListener('click',async()=>{try{await client.auth.signOut();}catch{}$('#generatedBox').classList.add('hidden');$('#generatedCode').textContent='';await refresh();});
 refresh();
 </script>
 </body>
