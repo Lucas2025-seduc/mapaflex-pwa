@@ -8,35 +8,53 @@ export async function onRequest(context) {
     'X-Content-Type-Options': 'nosniff'
   };
 
+  const reply = body => new Response(JSON.stringify(body), { status: 200, headers });
+
   if (request.method !== 'GET') {
-    return new Response(JSON.stringify({ ok: false, error: 'Método não permitido.' }), {
+    return new Response(JSON.stringify({ ok: false, code: 'METHOD_NOT_ALLOWED' }), {
       status: 405,
       headers
     });
   }
 
-  const result = {
+  const base = {
     ok: false,
     databaseUrlPresent: Boolean(env.DATABASE_URL),
-    stripeWebhookSecretPresent: Boolean(env.STRIPE_WEBHOOK_SECRET),
-    databaseConnected: false,
-    mapaflexSchemaReadable: false
+    stripeWebhookSecretPresent: Boolean(env.STRIPE_WEBHOOK_SECRET)
   };
 
   if (!env.DATABASE_URL) {
-    return new Response(JSON.stringify(result), { status: 503, headers });
+    return reply({ ...base, code: 'DB_URL_MISSING' });
+  }
+
+  if (!env.STRIPE_WEBHOOK_SECRET) {
+    return reply({ ...base, code: 'STRIPE_SECRET_MISSING' });
+  }
+
+  let sql;
+  try {
+    sql = neon(env.DATABASE_URL);
+    await sql`select 1 as ok`;
+  } catch {
+    return reply({ ...base, code: 'DB_CONNECTION_FAILED' });
   }
 
   try {
-    const sql = neon(env.DATABASE_URL);
     const rows = await sql`select code from mapaflex.plans order by code limit 5`;
-    result.databaseConnected = true;
-    result.mapaflexSchemaReadable = true;
-    result.planCodes = rows.map(r => r.code);
-    result.ok = true;
-    return new Response(JSON.stringify(result), { status: 200, headers });
-  } catch (error) {
-    result.databaseError = String(error?.message || error).slice(0, 500);
-    return new Response(JSON.stringify(result), { status: 503, headers });
+    return reply({
+      ...base,
+      ok: true,
+      code: 'OK',
+      databaseConnected: true,
+      mapaflexSchemaReadable: true,
+      planCodes: rows.map(r => r.code)
+    });
+  } catch {
+    return reply({
+      ...base,
+      code: 'SCHEMA_ACCESS_FAILED',
+      databaseConnected: true,
+      mapaflexSchemaReadable: false
+    });
   }
 }
