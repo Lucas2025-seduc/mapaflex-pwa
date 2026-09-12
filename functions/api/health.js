@@ -15,6 +15,8 @@ export async function onRequest(context) {
   let dataApiReachable = false;
   let billingWebhookReady = false;
   let billingProbeCode = 'UNREACHABLE';
+  let billingRpcHttpStatus = null;
+  let billingRpcDetail = null;
 
   try {
     const r = await fetch(`${DATA_API_URL}/rpc/process_stripe_webhook`, {
@@ -26,14 +28,17 @@ export async function onRequest(context) {
       },
       body: JSON.stringify({ p_raw_body: '{}', p_signature: 't=0,v1=0' })
     });
-    dataApiReachable = r.ok;
+    billingRpcHttpStatus = r.status;
     const text = await r.text();
     let body = null;
     try { body = text ? JSON.parse(text) : null; } catch {}
-    billingProbeCode = body?.code || (r.ok ? 'RPC_OK' : `HTTP_${r.status}`);
+    dataApiReachable = r.ok;
+    billingProbeCode = body?.code || body?.code_hint || (r.ok ? 'RPC_OK' : `HTTP_${r.status}`);
     billingWebhookReady = r.ok && body?.code === 'INVALID_SIGNATURE';
-  } catch {
+    if (!r.ok) billingRpcDetail = String(body?.message || body?.details || text || '').slice(0, 300) || null;
+  } catch (error) {
     billingProbeCode = 'UNREACHABLE';
+    billingRpcDetail = String(error?.message || error || '').slice(0, 300) || null;
   }
 
   const body = {
@@ -43,7 +48,9 @@ export async function onRequest(context) {
     storage: 'neon-postgres',
     dataApiReachable,
     billingWebhookReady,
-    billingProbeCode
+    billingProbeCode,
+    billingRpcHttpStatus,
+    billingRpcDetail
   };
 
   return new Response(JSON.stringify(body), { status: dataApiReachable ? 200 : 503, headers });
