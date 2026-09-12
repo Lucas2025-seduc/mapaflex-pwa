@@ -36,8 +36,19 @@ export async function onRequest(context) {
     return new Response(JSON.stringify({ ok: false, code: 'METHOD_NOT_ALLOWED' }), { status: 405, headers: jsonHeaders });
   }
 
-  const diag = new URL(request.url).searchParams.has('diag');
+  const url = new URL(request.url);
+  const diag = url.searchParams.has('diag');
+  const statusDiag = url.searchParams.get('diag') === 'status';
   const respond = (body, status = 200) => {
+    if (statusDiag) {
+      let diagnosticStatus = 200;
+      if (!body.databaseUrlPresent && !body.stripeWebhookSecretPresent) diagnosticStatus = 418;
+      else if (!body.databaseUrlPresent) diagnosticStatus = 409;
+      else if (!body.stripeWebhookSecretPresent) diagnosticStatus = 412;
+      else if (body.code === 'DB_CONNECTION_FAILED') diagnosticStatus = 424;
+      else if (body.code === 'SCHEMA_ACCESS_FAILED') diagnosticStatus = 422;
+      return new Response(JSON.stringify({ code: body.code, ok: body.ok }), { status: diagnosticStatus, headers: jsonHeaders });
+    }
     if (diag) {
       const safe = JSON.stringify(body, null, 2);
       return new Response(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(body.code || 'HEALTH')}</title><pre>${escapeHtml(safe)}</pre>`, {
