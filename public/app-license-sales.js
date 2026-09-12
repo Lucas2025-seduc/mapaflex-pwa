@@ -3,7 +3,11 @@
 
   const WHATSAPP_NUMBER='558899361992';
   const WHATSAPP_LABEL='(88) 9936-1992';
+  const AUTH_URL='https://ep-square-paper-aceqdgpa.neonauth.sa-east-1.aws.neon.tech/neondb/auth';
+  const DATA_URL='https://ep-square-paper-aceqdgpa.apirest.sa-east-1.aws.neon.tech/neondb/rest/v1';
+  const SDK_URL='https://esm.sh/@neondatabase/neon-js@0.7.0-beta?bundle';
   let scheduled=false;
+  let redeemClient=null;
 
   function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
@@ -18,6 +22,13 @@
       .mf-buy-whatsapp{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;border:0;border-radius:10px;padding:11px 12px;background:#16a34a;color:#fff;font-weight:800;cursor:pointer}
       .mf-buy-whatsapp:hover{filter:brightness(.96)}
       .mf-buy-contact{font-size:11px;color:#166534;text-align:center;font-weight:700}
+      .mf-redeem{border-top:1px solid #bbf7d0;margin-top:4px;padding-top:10px;display:grid;gap:7px}
+      .mf-redeem-title{font-size:12px;font-weight:800;color:#166534}
+      .mf-redeem-row{display:flex;gap:7px;flex-wrap:wrap}
+      .mf-redeem-input{flex:1;min-width:210px;border:1px solid #86efac;border-radius:9px;padding:10px;font:600 12px ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;background:#fff;color:#0f172a}
+      .mf-redeem-btn{border:0;border-radius:9px;padding:10px 12px;background:#166534;color:#fff;font-weight:800;cursor:pointer}
+      .mf-redeem-btn:disabled{opacity:.55;cursor:wait}
+      .mf-redeem-status{font-size:11px;line-height:1.4;color:#475569}.mf-redeem-status.good{color:#166534}.mf-redeem-status.bad{color:#991b1b}
     `;
     document.head.appendChild(s);
   }
@@ -35,6 +46,38 @@
     if(status && /Vercel/i.test(status.textContent||'')) status.textContent=status.textContent.replace(/Vercel/gi,'Cloudflare');
   }
 
+  async function client(){
+    if(redeemClient) return redeemClient;
+    const mod=await import(SDK_URL);
+    redeemClient=mod.createClient({auth:{url:AUTH_URL},dataApi:{url:DATA_URL,options:{db:{schema:'mapaflex'}}}});
+    return redeemClient;
+  }
+
+  async function redeem(code, button, statusEl){
+    const raw=String(code||'').trim();
+    if(!raw){statusEl.className='mf-redeem-status bad';statusEl.textContent='Digite o código recebido.';return;}
+    button.disabled=true;
+    statusEl.className='mf-redeem-status';
+    statusEl.textContent='Validando código com o servidor…';
+    try{
+      const c=await client();
+      const result=await c.rpc('redeem_license_key',{p_code:raw});
+      if(result?.error) throw new Error(result.error.message||'Não foi possível ativar a licença.');
+      const row=Array.isArray(result?.data)?result.data[0]:(Array.isArray(result)?result[0]:(result?.data||result));
+      if(row?.success===false) throw new Error(row.message||'Código não aceito.');
+      statusEl.className='mf-redeem-status good';
+      statusEl.textContent='Licença ativada com sucesso. Atualizando sua conta…';
+      const billing=window.MapaFlexBilling;
+      if(billing?.refresh) await billing.refresh();
+      setTimeout(scheduleEnhance,20);
+    }catch(err){
+      statusEl.className='mf-redeem-status bad';
+      statusEl.textContent=err?.message||'Falha ao ativar o código.';
+    }finally{
+      button.disabled=false;
+    }
+  }
+
   function enhanceLicenseModal(){
     scheduled=false;
     installStyle();
@@ -49,8 +92,6 @@
     const standalone=root.querySelector('#mfBuyLicenseSales');
 
     if(active){standalone?.remove();return;}
-
-    // O app-billing já desenha o botão para usuários autenticados.
     if(root.querySelector('#mfBuyLicense')){standalone?.remove();return;}
     if(standalone) return;
 
@@ -68,9 +109,10 @@
     box.className='mf-buy-box';
     box.innerHTML=`
       <div class="mf-buy-title">Adquirir licença MapaFlex Pro</div>
-      <div class="mf-buy-text">${user?'Após confirmar a compra, a licença é ativada na sua conta e você só precisa clicar em <b>Atualizar licença</b>.':'Você pode falar com o responsável agora. Para ativar a licença, crie ou entre em uma conta no MapaFlex.'}</div>
+      <div class="mf-buy-text">${user?'Após confirmar a compra, você receberá um código de licença de uso único. Digite-o abaixo para vincular o Premium à sua conta.':'Fale com o responsável pelo WhatsApp. Para ativar a licença depois, crie ou entre em uma conta no MapaFlex.'}</div>
       <a class="mf-buy-whatsapp" target="_blank" rel="noopener noreferrer" href="https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}">💬 Comprar pelo WhatsApp</a>
-      <div class="mf-buy-contact">Contato oficial: ${esc(WHATSAPP_LABEL)}</div>`;
+      <div class="mf-buy-contact">Contato oficial: ${esc(WHATSAPP_LABEL)}</div>
+      ${user?`<div class="mf-redeem"><div class="mf-redeem-title">Já tem um código? Ative aqui</div><div class="mf-redeem-row"><input id="mfLicenseCodeInput" class="mf-redeem-input" autocomplete="off" spellcheck="false" maxlength="64" placeholder="MF-XXXX-XXXX-…"><button id="mfRedeemLicenseBtn" class="mf-redeem-btn" type="button">Ativar código</button></div><div id="mfRedeemLicenseStatus" class="mf-redeem-status">O código é de uso único e fica vinculado à sua conta depois da ativação.</div></div>`:''}`;
 
     const accountBox=root.querySelector('.mf-account-box');
     const signOut=root.querySelector('#mfSignOut');
@@ -82,6 +124,12 @@
     }else{
       root.appendChild(box);
     }
+
+    const input=box.querySelector('#mfLicenseCodeInput');
+    const btn=box.querySelector('#mfRedeemLicenseBtn');
+    const statusEl=box.querySelector('#mfRedeemLicenseStatus');
+    if(input) input.addEventListener('input',()=>{input.value=input.value.toUpperCase().replace(/\s+/g,'');});
+    if(btn&&input&&statusEl) btn.addEventListener('click',()=>redeem(input.value,btn,statusEl));
   }
 
   function scheduleEnhance(){
