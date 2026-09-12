@@ -1,6 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 
-const headers = {
+const jsonHeaders = {
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control': 'no-store',
   'X-Content-Type-Options': 'nosniff'
@@ -25,15 +25,28 @@ function bindingInfo(env, name) {
   };
 }
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
 
   if (request.method !== 'GET') {
-    return new Response(JSON.stringify({ ok: false, code: 'METHOD_NOT_ALLOWED' }), { status: 405, headers });
+    return new Response(JSON.stringify({ ok: false, code: 'METHOD_NOT_ALLOWED' }), { status: 405, headers: jsonHeaders });
   }
 
   const diag = new URL(request.url).searchParams.has('diag');
-  const respond = (body, status = 200) => new Response(JSON.stringify(body), { status: diag ? 200 : status, headers });
+  const respond = (body, status = 200) => {
+    if (diag) {
+      const safe = JSON.stringify(body, null, 2);
+      return new Response(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(body.code || 'HEALTH')}</title><pre>${escapeHtml(safe)}</pre>`, {
+        status: 200,
+        headers: { ...jsonHeaders, 'Content-Type': 'text/html; charset=utf-8' }
+      });
+    }
+    return new Response(JSON.stringify(body), { status, headers: jsonHeaders });
+  };
 
   const databaseUrl = await secretValue(env, 'DATABASE_URL');
   const stripeWebhookSecret = await secretValue(env, 'STRIPE_WEBHOOK_SECRET');
