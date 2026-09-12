@@ -13,10 +13,14 @@ export async function onRequest(context) {
   return new Response(JSON.stringify({
     ok: true,
     code: 'OK',
+    build: '2026-09-12-audit-v6',
     platform: 'cloudflare-workers',
     authentication: 'neon-auth',
     licenseStore: 'neon-data-api',
     licenseSales: 'whatsapp-manual',
+    whatsappPurchase: true,
+    aiKeys: 'user-supplied-only',
+    stripeWebhook: false,
     paymentsEmbedded: false
   }), { status: 200, headers });
 }
