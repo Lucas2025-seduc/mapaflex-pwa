@@ -1,0 +1,145 @@
+        <div id="aiStatus" class="aiStatus">Não testado.</div>
+        <div class="hr"></div>
+        <div class="field"><label>Ação</label><select id="aiAction">
+          <option value="create_map">Criar mapa completo</option>
+          <option value="explain">Explicar o balão selecionado</option>
+          <option value="examples">Dar exemplos</option>
+          <option value="questions">Criar questões</option>
+          <option value="connections">Sugerir integração entre balões</option>
+          <option value="doubt">Tirar dúvida</option>
+          <option value="materials">Sugerir materiais e vídeos</option>
+          <option value="expand">Expandir o balão com novos tópicos</option>
+          <option value="custom">Pedido livre</option>
+        </select></div>
+        <div id="aiMapOptions">
+          <div class="field"><label>Profundidade do mapa</label><select id="aiMapDepth">
+            <option value="simple">Simples</option>
+            <option value="deep" selected>Aprofundado</option>
+            <option value="superdeep">Superaprofundado</option>
+            <option value="extended">Completo / estendido</option>
+          </select><div class="help" id="aiMapDepthHelp">Mapa detalhado, com vários níveis e ramificações.</div></div>
+          <div class="field"><label>Nível de linguagem</label><select id="aiEducationLevel">
+            <option value="fundamental">Ensino fundamental</option>
+            <option value="medio">Ensino médio</option>
+            <option value="superior" selected>Ensino superior / graduação</option>
+            <option value="pos">Pós-graduação / nível avançado</option>
+          </select></div>
+          <div class="field"><label>Exemplos</label><select id="aiMapExamples">
+            <option value="no">Sem exemplos</option>
+            <option value="yes" selected>Com exemplos</option>
+          </select><div class="help">Quando ativado, a IA inclui exemplos didáticos nas notas e, nos modos mais profundos, também em ramificações próprias quando forem úteis.</div></div>
+        </div>
+        <div class="field"><label>Pedido / tema</label><textarea id="aiPrompt" placeholder="Ex.: Metabolismo celular, enfatizando glicólise, ciclo de Krebs e regulação hormonal..."></textarea></div>
+        <button class="btn primary" id="aiRun" style="width:100%;justify-content:center">🤖 Executar IA</button>
+        <div class="aiWarning" style="margin-top:8px">Para uso em produção, o ideal é chamar as APIs por um backend/proxy seguro. Uma chave secreta digitada diretamente em um app HTML pode ser vista pelo navegador do usuário.</div>
+      </div>
+      <div class="section">
+        <h3>Importar / exportar</h3>
+        <div class="toolgrid">
+          <button class="tool" id="exportSvg">SVG<strong>Exportar</strong><small>Vetorial</small></button>
+          <button class="tool" id="exportPng">PNG<strong>Exportar</strong><small>Imagem</small></button>
+          <button class="tool" id="exportPdf">PDF<strong>Exportar</strong><small>Alta resolução</small></button>
+          <button class="tool" id="exportJson2">JSON<strong>Exportar</strong><small>Backup</small></button>
+          <button class="tool" id="importJson2">JSON<strong>Importar</strong><small>Backup</small></button>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept=".json,application/json" hidden>
+<input type="file" id="attachmentInput" accept=".pdf,.ppt,.pptx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,audio/*" multiple hidden>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const svg = $('svg'), viewport = $('viewport'), nodesG = $('nodes'), edgesG = $('edges'), labelsG = $('labels');
+  const canvas = $('canvasWrap');
+  const NS = 'http://www.w3.org/2000/svg';
+  const colors = ['#ffffff','#e8f0ff','#e6fffb','#f3e8ff','#fff7ed','#fef2f2','#f1f5f9','#ecfccb'];
+  let state = {
+    title:'Meu mapa', mode:'mind', theme:'blue',
+    nodes:[
+      {id:'root',text:'Tema central',x:0,y:0,parent:null,color:'#e8f0ff',shape:'rounded',note:'Clique e edite. Use Tab para criar filhos.',link:'',image:'',bold:false,italic:false},
+      {id:'n1',text:'Ideia principal',x:-260,y:-150,parent:'root',color:'#ffffff',shape:'rounded',note:'',link:'',image:'',bold:false,italic:false},
+      {id:'n2',text:'Segundo eixo',x:260,y:-150,parent:'root',color:'#ffffff',shape:'rounded',note:'',link:'',image:'',bold:false,italic:false},
+      {id:'n3',text:'Detalhe / evidência',x:-260,y:150,parent:'n1',color:'#ffffff',shape:'rounded',note:'',link:'',image:'',bold:false,italic:false},
+      {id:'n4',text:'Ação / conclusão',x:260,y:150,parent:'n2',color:'#ffffff',shape:'rounded',note:''}
+    ],
+    relations:[],
+    collapsed:[],
+    next:10
+  };
+  const DEFAULT_STATE_JSON=JSON.stringify(state);
+  let selected='root', connectSource=null, pan={x:0,y:0}, zoom=1, dragging=null, panning=null, grid=true, editingNode=null;
+  let nodeClickTimer=null, nodeWasDragged=false, dragOrigin=null;
+  let presentationMode=false, presentationSequence=[], presentationIndex=0, presentationCollapsedBackup=null;
+  let renderContext='screen';
+  let imageZoom=1, imageDragState=null, imageFitWidth=0, imageFitHeight=0;
+  let recordingStream=null, mediaRecorder=null, recordingChunks=[], recordingNodeId=null;
+  let activeAttachment=null, mediaObjectUrl=null, attachmentDbPromise=null, lastAiResult=null, lastAiAction='', lastAiStructured=null;
+  let history=[], future=[];
+  const themes = {
+    blue:{accent:'#2563eb',edge:'#94a3b8',root:'#e8f0ff',rootBorder:'#2563eb'},
+    teal:{accent:'#0f766e',edge:'#7ca6a3',root:'#e6fffb',rootBorder:'#0f766e'},
+    purple:{accent:'#7c3aed',edge:'#a78bfa',root:'#f3e8ff',rootBorder:'#7c3aed'},
+    gray:{accent:'#475569',edge:'#94a3b8',root:'#f1f5f9',rootBorder:'#475569'},
+    warm:{accent:'#b45309',edge:'#c4a77d',root:'#fff7ed',rootBorder:'#b45309'}
+  };
+
+  function snapshot(){ return JSON.stringify(state); }
+  function pushHistory(){
+    history.push(snapshot()); if(history.length>60) history.shift(); future=[];
+  }
+  function restore(s){
+    state=normalizeState(JSON.parse(s));
+    selected = state.nodes.find(n=>n.id==='root')?.id || state.nodes[0]?.id;
+    render(); saveLocal();
+  }
+  function undo(){
+    if(!history.length) return;
+    future.push(snapshot()); restore(history.pop());
+  }
+  function redo(){
+    if(!future.length) return;
+    history.push(snapshot()); restore(future.pop());
+  }
+  function nodeById(id){ return state.nodes.find(n=>n.id===id); }
+  function children(id){ return state.nodes.filter(n=>n.parent===id && !state.collapsed.includes(n.id)); }
+  function allChildren(id){ return state.nodes.filter(n=>n.parent===id); }
+  const measureCanvas=document.createElement('canvas');
+  const measureCtx=measureCanvas.getContext('2d');
+  const NODE_MIN_WIDTH=140, NODE_MAX_WIDTH=320, NODE_MIN_HEIGHT=56, NODE_MAX_TEXT_WIDTH=230, NODE_LINE_HEIGHT=18, NODE_PAD_X=22, NODE_PAD_Y=16;
+  const EXPORT_NODE_MAX_WIDTH=420, EXPORT_NODE_MIN_HEIGHT=84, EXPORT_IMAGE_SIZE=86, SCREEN_IMAGE_SIZE=34;
+  function isExportRender(){ return renderContext==='export'; }
+  function textWidth(text, weight=600){
+    measureCtx.font=`${weight} 14px Inter, Segoe UI, Arial, sans-serif`;
+    return Math.ceil(measureCtx.measureText(String(text||'')).width);
+  }
+  function breakLongWord(word,maxWidth,weight=600){
+    const parts=[]; let current='';
+    for(const ch of String(word||'')){
+      const test=current+ch;
+      if(current && textWidth(test,weight)>maxWidth){ parts.push(current); current=ch; }
+      else current=test;
+    }
+    if(current) parts.push(current);
+    return parts.length?parts:[''];
+  }
+  function wrapNodeText(text,maxWidth,weight=600){
+    const raw=String(text||'').replace(/\s+/g,' ').trim() || 'Novo tópico';
+    const words=raw.split(' ');
+    const lines=[]; let current='';
+    for(const word of words){
+      const candidate=current ? current+' '+word : word;
+      if(textWidth(candidate,weight)<=maxWidth){ current=candidate; continue; }
+      if(current) lines.push(current);
+      if(textWidth(word,weight)<=maxWidth){ current=word; continue; }
+      const chunks=breakLongWord(word,maxWidth,weight);
+      lines.push(...chunks.slice(0,-1));
+      current=chunks[chunks.length-1] || '';
+    }
+    if(current) lines.push(current);
+    return lines.length?lines:['Novo tópico'];
+  }
+  function nodeMetrics(n){
