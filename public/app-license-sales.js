@@ -3,6 +3,7 @@
 
   const WHATSAPP_NUMBER='558899361992';
   const WHATSAPP_LABEL='(88) 9936-1992';
+  let scheduled=false;
 
   function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
@@ -21,32 +22,53 @@
     document.head.appendChild(s);
   }
 
+  function hardenAiUi(){
+    const checkbox=document.getElementById('aiServerKey');
+    if(checkbox){
+      checkbox.checked=false;
+      checkbox.disabled=true;
+      try{localStorage.setItem('MapaFlexAIServerKey','0');}catch{}
+      const label=checkbox.closest('label');
+      if(label) label.style.display='none';
+    }
+    const status=document.getElementById('aiStatus');
+    if(status && /Vercel/i.test(status.textContent||'')) status.textContent=status.textContent.replace(/Vercel/gi,'Cloudflare');
+  }
+
   function enhanceLicenseModal(){
+    scheduled=false;
     installStyle();
+    hardenAiUi();
+
     const root=document.getElementById('mfLicenseBody');
     const billing=window.MapaFlexBilling;
     if(!root||!billing) return;
 
     const user=billing.user;
     const active=billing.plan==='pro'&&['active','grace'].includes(String(billing.licenseStatus||''));
-    root.querySelector('#mfBuyLicense')?.remove();
-    if(active) return;
+    const standalone=root.querySelector('#mfBuyLicenseSales');
+
+    if(active){standalone?.remove();return;}
+
+    // O app-billing já desenha o botão para usuários autenticados.
+    if(root.querySelector('#mfBuyLicense')){standalone?.remove();return;}
+    if(standalone) return;
 
     const userId=String(user?.id||'');
     const email=String(user?.email||'');
     const text=[
       'Olá! Quero adquirir uma licença MapaFlex Pro.',
-      email?`E-mail da conta: ${email}`:'',
+      email?`E-mail da conta: ${email}`:'Ainda não entrei na minha conta.',
       userId?`ID da conta: ${userId}`:'',
       'Pode me informar as condições de pagamento e ativação?'
     ].filter(Boolean).join('\n');
 
     const box=document.createElement('div');
-    box.id='mfBuyLicense';
+    box.id='mfBuyLicenseSales';
     box.className='mf-buy-box';
     box.innerHTML=`
       <div class="mf-buy-title">Adquirir licença MapaFlex Pro</div>
-      <div class="mf-buy-text">${user?'Fale diretamente com o responsável pelo MapaFlex. Após a confirmação da compra, a licença é ativada na sua conta e você só precisa clicar em <b>Atualizar licença</b>.':'Você pode falar com o responsável pelo MapaFlex agora. Para ativar a licença depois, crie ou entre em uma conta no app.'}</div>
+      <div class="mf-buy-text">${user?'Após confirmar a compra, a licença é ativada na sua conta e você só precisa clicar em <b>Atualizar licença</b>.':'Você pode falar com o responsável agora. Para ativar a licença, crie ou entre em uma conta no MapaFlex.'}</div>
       <a class="mf-buy-whatsapp" target="_blank" rel="noopener noreferrer" href="https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}">💬 Comprar pelo WhatsApp</a>
       <div class="mf-buy-contact">Contato oficial: ${esc(WHATSAPP_LABEL)}</div>`;
 
@@ -54,32 +76,39 @@
     const signOut=root.querySelector('#mfSignOut');
     const authForm=root.querySelector('#mfAuthForm');
     if(accountBox){
-      if(signOut) accountBox.insertBefore(box,signOut);
-      else accountBox.appendChild(box);
+      if(signOut) accountBox.insertBefore(box,signOut); else accountBox.appendChild(box);
     }else if(authForm){
       authForm.insertAdjacentElement('afterend',box);
     }else{
       root.appendChild(box);
     }
-
-    root.querySelectorAll('.mf-note').forEach(el=>{
-      if(/não possui checkout|pagamento embutido|liberado manualmente/i.test(el.textContent||'')){
-        el.textContent='A compra é combinada diretamente pelo WhatsApp. Depois da ativação, clique em “Atualizar licença”.';
-      }
-    });
   }
 
-  const observer=new MutationObserver(()=>enhanceLicenseModal());
+  function scheduleEnhance(){
+    if(scheduled) return;
+    scheduled=true;
+    queueMicrotask(enhanceLicenseModal);
+  }
+
   const start=()=>{
+    hardenAiUi();
     const modal=document.getElementById('mfLicenseModal');
-    if(modal) observer.observe(modal,{childList:true,subtree:true});
-    enhanceLicenseModal();
+    if(modal){
+      const observer=new MutationObserver(scheduleEnhance);
+      observer.observe(modal,{childList:true,subtree:true});
+    }
+    const aiStatus=document.getElementById('aiStatus');
+    if(aiStatus){
+      const aiObserver=new MutationObserver(hardenAiUi);
+      aiObserver.observe(aiStatus,{childList:true,subtree:true,characterData:true});
+    }
+    scheduleEnhance();
   };
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(start,0),{once:true});
   else setTimeout(start,0);
 
   document.addEventListener('click',e=>{
-    if(e.target instanceof Element && e.target.closest('#mfAccountBtn,#mfRefreshAccess,.mf-tab')) setTimeout(enhanceLicenseModal,30);
+    if(e.target instanceof Element && e.target.closest('#mfAccountBtn,#mfRefreshAccess,.mf-tab')) setTimeout(scheduleEnhance,30);
   });
 })();
