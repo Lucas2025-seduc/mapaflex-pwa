@@ -1,0 +1,6 @@
+{
+  "name": "mapaflex-pwa",
+  "pages_build_output_dir": "./public",
+  "compatibility_date": "2026-09-12",
+  "compatibility_flags": ["nodejs_compat"]
+}
