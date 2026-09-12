@@ -1,0 +1,163 @@
+      const isDesc=descendants.has(id);
+      el.style.opacity = isCurrent ? '1' : isAncestor ? '.92' : isDesc ? '.66' : '.14';
+      el.style.filter = isCurrent ? 'drop-shadow(0 10px 20px rgba(37,99,235,.22))' : '';
+    });
+    edgesG.querySelectorAll('.edge').forEach(el=>{
+      const a=el.dataset.a, b=el.dataset.b;
+      const visible=focusSet.has(a) && focusSet.has(b);
+      el.style.opacity = visible ? '.92' : '.12';
+    });
+    labelsG.querySelectorAll('.edgeLabel').forEach(el=>{
+      const a=el.dataset.a, b=el.dataset.b;
+      const visible=focusSet.has(a) && focusSet.has(b);
+      el.style.opacity = visible ? '1' : '.12';
+    });
+    updatePresentationMedia();
+  }
+  function updatePresentationHud(){
+    const node=currentPresentationNode();
+    $('presentationCounter').textContent = presentationMode ? `Fase ${presentationIndex+1} / ${presentationSequence.length}` : '0 / 0';
+    $('presentationTitle').textContent = node ? (node.text || 'Apresentação') : 'Apresentação';
+  }
+  function focusPresentationStep(index){
+    if(!presentationMode || !presentationSequence.length) return;
+    presentationIndex=Math.max(0, Math.min(presentationSequence.length-1, index));
+    const node=presentationSequence[presentationIndex];
+    if(!node) return;
+    selected=node.id;
+    const m=nodeMetrics(node);
+    const mediaOffset=(getVideoEmbedInfo(node.link) || node.image) ? Math.min(120, svg.clientWidth*0.11) : 0;
+    const targetZoom=Math.max(.95, Math.min(1.7, Math.min(svg.clientWidth/(m.w+300), svg.clientHeight/(m.h+180), 1.55)));
+    zoom=targetZoom;
+    pan={x:-node.x*zoom - mediaOffset,y:-node.y*zoom};
+    render();
+    updatePresentationHud();
+    $('status').textContent = `Apresentação • fase ${presentationIndex+1} de ${presentationSequence.length}`;
+  }
+  function startPresentation(){
+    const seq=getPresentationSequence();
+    if(!seq.length) return;
+    if(!presentationMode) presentationCollapsedBackup=[...(state.collapsed||[])];
+    state.collapsed=[];
+    presentationSequence=seq;
+    presentationMode=true;
+    presentationIndex=0;
+    document.documentElement.requestFullscreen?.().catch(()=>{});
+    focusPresentationStep(0);
+  }
+  function stopPresentation(){
+    if(!presentationMode) return;
+    presentationMode=false;
+    presentationSequence=[];
+    presentationIndex=0;
+    if(Array.isArray(presentationCollapsedBackup)) state.collapsed=[...presentationCollapsedBackup];
+    presentationCollapsedBackup=null;
+    document.exitFullscreen?.().catch?.(()=>{});
+    render();
+  }
+  function nextPresentationStep(){ if(presentationMode && presentationIndex<presentationSequence.length-1) focusPresentationStep(presentationIndex+1); }
+  function prevPresentationStep(){ if(presentationMode && presentationIndex>0) focusPresentationStep(presentationIndex-1); }
+  function calculateImageFit(){
+    const img=$('imageModalImg'), vp=$('imageModalViewport');
+    if(!img || !vp || !img.naturalWidth || !img.naturalHeight) return false;
+    const maxW=Math.max(120,vp.clientWidth-32), maxH=Math.max(120,vp.clientHeight-32);
+    const scale=Math.min(maxW/img.naturalWidth,maxH/img.naturalHeight,1);
+    imageFitWidth=Math.max(1,Math.round(img.naturalWidth*scale));
+    imageFitHeight=Math.max(1,Math.round(img.naturalHeight*scale));
+    return true;
+  }
+  function updateImageZoom(){
+    const stage=$('imageModalStage'), img=$('imageModalImg');
+    if(!stage || !img || !imageFitWidth || !imageFitHeight) return;
+    const w=Math.max(1,Math.round(imageFitWidth*imageZoom));
+    const h=Math.max(1,Math.round(imageFitHeight*imageZoom));
+    stage.style.width=w+'px'; stage.style.height=h+'px';
+    img.style.width=w+'px'; img.style.height=h+'px';
+    $('imageZoomLabel').textContent=Math.round(imageZoom*100)+'%';
+  }
+  function setImageZoom(value){
+    const vp=$('imageModalViewport');
+    const oldW=vp?.scrollWidth||1, oldH=vp?.scrollHeight||1;
+    const cx=(vp?.scrollLeft||0)+(vp?.clientWidth||0)/2, cy=(vp?.scrollTop||0)+(vp?.clientHeight||0)/2;
+    imageZoom=Math.max(.25, Math.min(8, value));
+    updateImageZoom();
+    if(vp){
+      const rx=oldW?cx/oldW:.5, ry=oldH?cy/oldH:.5;
+      requestAnimationFrame(()=>{vp.scrollLeft=Math.max(0,rx*vp.scrollWidth-vp.clientWidth/2);vp.scrollTop=Math.max(0,ry*vp.scrollHeight-vp.clientHeight/2);});
+    }
+  }
+  function resetImageZoom(){
+    const vp=$('imageModalViewport');
+    if(!calculateImageFit()) return;
+    imageZoom=1;
+    updateImageZoom();
+    requestAnimationFrame(()=>{if(vp){vp.scrollLeft=Math.max(0,(vp.scrollWidth-vp.clientWidth)/2);vp.scrollTop=Math.max(0,(vp.scrollHeight-vp.clientHeight)/2);}});
+  }
+  function openImageModal(src,title='Imagem do balão'){
+    if(!src) return;
+    const img=$('imageModalImg');
+    $('imageModalTitle').textContent=title || 'Imagem do balão';
+    $('imageModal').classList.add('visible');
+    $('imageModal').setAttribute('aria-hidden','false');
+    imageZoom=1; imageFitWidth=0; imageFitHeight=0;
+    img.onload=()=>resetImageZoom();
+    img.src=src;
+    if(img.complete && img.naturalWidth) setTimeout(()=>resetImageZoom(),0);
+  }
+  function closeImageModal(){
+    $('imageModal').classList.remove('visible');
+    $('imageModal').setAttribute('aria-hidden','true');
+    const img=$('imageModalImg'); if(img){img.onload=null;img.src='';img.style.width='';img.style.height='';}
+    const stage=$('imageModalStage'); if(stage){stage.style.width='';stage.style.height='';}
+    imageDragState=null; imageFitWidth=0; imageFitHeight=0;
+  }
+  function drawNode(n){
+    const metrics=nodeMetrics(n);
+    const {w,h,x,y,editorX,editorW,editorH,showImageOnly}=metrics;
+    const g=svgEl('g',{class:'node'+(n.id===selected?' selected':'')+(editingNode===n.id?' editing':'')+(n.link?' hasLink':''),'data-id':n.id,transform:`translate(${n.x},${n.y})`});
+    let rx=10;
+    if(n.shape==='pill') rx=28; else if(n.shape==='box') rx=4;
+    const t=themes[state.theme]||themes.blue;
+    const rect=svgEl('rect',{x,y,width:w,height:h,rx,fill:n.id==='root'?t.root:n.color||'#fff',stroke:n.id==='root'?t.rootBorder:'#cbd5e1'});
+    g.appendChild(rect);
+    const showThumb = !!n.image && !(presentationMode && currentPresentationNode()?.id===n.id);
+    if(showThumb && showImageOnly){
+      const img=svgEl('image',{class:'nodeImage',x:x+8,y:y+8,width:w-16,height:h-16,href:n.image,preserveAspectRatio:'xMidYMid meet'});
+      img.addEventListener('mousedown',ev=>ev.stopPropagation());
+      img.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); openImageModal(n.image, n.text || 'Imagem do balão'); });
+      const imgTip=svgEl('title'); imgTip.textContent='Clique para ampliar a imagem'; img.appendChild(imgTip);
+      g.appendChild(img);
+    }
+    if(editingNode===n.id){
+      const fo=svgEl('foreignObject',{class:'nodeEditorFO',x:editorX,y:y+6,width:editorW,height:editorH});
+      const input=document.createElementNS('http://www.w3.org/1999/xhtml','textarea');
+      input.className='nodeEditor';
+      input.setAttribute('xmlns','http://www.w3.org/1999/xhtml');
+      input.value=n.text;
+      input.setAttribute('aria-label','Editar texto do balão');
+      input.setAttribute('rows','1');
+      if(n.bold) input.style.fontWeight='750';
+      if(n.italic) input.style.fontStyle='italic';
+      input.addEventListener('mousedown',ev=>ev.stopPropagation());
+      input.addEventListener('click',ev=>ev.stopPropagation());
+      input.addEventListener('dblclick',ev=>ev.stopPropagation());
+      input.addEventListener('input',()=>{
+        const nn=nodeById(n.id); if(!nn) return;
+        nn.text=input.value || 'Novo tópico';
+        $('nodeTextInput').value=input.value;
+        autoGrowEditor(input);
+      });
+      input.addEventListener('keydown',(ev)=>{
+        if(ev.key==='Enter' && !ev.shiftKey){ev.preventDefault();ev.stopPropagation();finishInlineEdit();}
+        if(ev.key==='Escape'){ev.preventDefault();ev.stopPropagation();finishInlineEdit(true);}
+      });
+      input.addEventListener('blur',()=>{ if(editingNode===n.id) finishInlineEdit(); });
+      fo.appendChild(input);
+      g.appendChild(fo);
+    } else if(!showImageOnly) {
+      appendWrappedText(g,n,metrics);
+    }
+    const presentOrder=normalizePresentOrder(n.presentOrder);
+    if(presentOrder!==''){
+      const badge=svgEl('circle',{cx:x+16,cy:y+16,r:12,fill:t.accent,stroke:'#fff','stroke-width':2});
+      g.appendChild(badge);
