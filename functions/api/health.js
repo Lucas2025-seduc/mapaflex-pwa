@@ -6,6 +6,16 @@ const headers = {
   'X-Content-Type-Options': 'nosniff'
 };
 
+async function secretValue(env, name) {
+  const binding = env?.[name];
+  if (!binding) return '';
+  if (typeof binding === 'string') return binding;
+  if (typeof binding.get === 'function') {
+    try { return String(await binding.get() || ''); } catch { return ''; }
+  }
+  return '';
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
 
@@ -13,25 +23,27 @@ export async function onRequest(context) {
     return new Response(JSON.stringify({ ok: false, code: 'METHOD_NOT_ALLOWED' }), { status: 405, headers });
   }
 
+  const databaseUrl = await secretValue(env, 'DATABASE_URL');
+  const stripeWebhookSecret = await secretValue(env, 'STRIPE_WEBHOOK_SECRET');
   const base = {
     ok: false,
     platform: 'cloudflare-workers',
     storage: 'neon-postgres',
-    databaseUrlPresent: Boolean(env.DATABASE_URL),
-    stripeWebhookSecretPresent: Boolean(env.STRIPE_WEBHOOK_SECRET)
+    databaseUrlPresent: Boolean(databaseUrl),
+    stripeWebhookSecretPresent: Boolean(stripeWebhookSecret)
   };
 
-  if (!env.DATABASE_URL) {
+  if (!databaseUrl) {
     return new Response(JSON.stringify({ ...base, code: 'DB_URL_MISSING' }), { status: 503, headers });
   }
 
-  if (!env.STRIPE_WEBHOOK_SECRET) {
+  if (!stripeWebhookSecret) {
     return new Response(JSON.stringify({ ...base, code: 'STRIPE_SECRET_MISSING' }), { status: 503, headers });
   }
 
   let sql;
   try {
-    sql = neon(env.DATABASE_URL);
+    sql = neon(databaseUrl);
     await sql`select 1 as ok`;
   } catch {
     return new Response(JSON.stringify({ ...base, code: 'DB_CONNECTION_FAILED' }), { status: 503, headers });
