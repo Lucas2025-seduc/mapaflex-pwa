@@ -9,6 +9,15 @@
   let scheduled=false;
   let redeemClient=null;
 
+  function loadMobileUx(){
+    if(document.querySelector('script[data-mapaflex-mobile-ux],script[src="/mobile-ux.js"]'))return;
+    const s=document.createElement('script');
+    s.src='/mobile-ux.js';
+    s.defer=true;
+    s.dataset.mapaflexMobileUx='1';
+    document.head.appendChild(s);
+  }
+
   function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
   function installStyle(){
@@ -147,6 +156,7 @@
   function scheduleEnhance(){if(scheduled)return;scheduled=true;queueMicrotask(enhanceLicenseModal);}
 
   const start=()=>{
+    loadMobileUx();
     hardenAiUi();
     const modal=document.getElementById('mfLicenseModal');
     if(modal){const observer=new MutationObserver(scheduleEnhance);observer.observe(modal,{childList:true,subtree:true});}
