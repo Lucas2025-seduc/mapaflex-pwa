@@ -2,6 +2,7 @@ const reply = (res, status, body) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'no-referrer');
   return res.status(status).json(body);
 };
 
@@ -11,16 +12,16 @@ export default async function handler(req, res) {
 
   try {
     const payload = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-    const { provider, key, model, action, system, user, json, baseUrl, maxTokens } = payload;
+    const { provider, key, model, action, system, user, json, maxTokens } = payload;
 
     if (!['openai', 'gemini'].includes(provider)) return reply(res, 400, { error: 'Provedor inválido.' });
     if (!['models', 'chat'].includes(action)) return reply(res, 400, { error: 'Ação inválida.' });
 
-    const envKey = provider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GEMINI_API_KEY;
-    const effectiveKey = typeof key === 'string' && key.trim() ? key.trim() : envKey;
-    if (!effectiveKey || effectiveKey.length > 5000) {
-      return reply(res, 400, { error: `Chave de API ausente. Informe uma chave no app ou configure ${provider === 'openai' ? 'OPENAI_API_KEY' : 'GEMINI_API_KEY'} no Vercel.` });
+    const effectiveKey = typeof key === 'string' ? key.trim() : '';
+    if (!effectiveKey) {
+      return reply(res, 403, { error: 'Informe sua própria chave da API no MapaFlex. O uso de chave compartilhada do servidor está desativado por segurança.' });
     }
+    if (effectiveKey.length > 5000) return reply(res, 400, { error: 'Chave de API inválida.' });
 
     const outputLimit = Math.max(32, Math.min(32768, Number(maxTokens) || 7000));
     const providerFetch = async (url, options = {}) => {
@@ -69,15 +70,7 @@ export default async function handler(req, res) {
       return reply(res, 200, { content });
     }
 
-    let base = 'https://api.openai.com/v1';
-    if (baseUrl) {
-      const parsed = new URL(baseUrl);
-      const h = parsed.hostname.toLowerCase();
-      const blocked = parsed.protocol !== 'https:' || h === 'localhost' || h === '0.0.0.0' || h === '::1' || /^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h) || /^169\.254\./.test(h) || h.endsWith('.local');
-      if (blocked) return reply(res, 400, { error: 'Base URL não permitida.' });
-      base = parsed.href.replace(/\/$/, '');
-    }
-
+    const base = 'https://api.openai.com/v1';
     if (action === 'models') {
       const body = await providerFetch(`${base}/models`, { headers: { Authorization: `Bearer ${effectiveKey}` } });
       return reply(res, 200, { models: (body.data || []).map(m => m.id).filter(Boolean) });
@@ -86,25 +79,23 @@ export default async function handler(req, res) {
     const chosen = String(model || '').trim();
     if (!chosen) return reply(res, 400, { error: 'Modelo ausente.' });
 
-    if (base === 'https://api.openai.com/v1') {
-      try {
-        const body = await providerFetch(`${base}/responses`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${effectiveKey}` },
-          body: JSON.stringify({
-            model: chosen,
-            instructions: String(system || '').slice(0, 30000),
-            input: String(user || '').slice(0, 120000),
-            max_output_tokens: outputLimit
-          })
-        });
-        const content = typeof body.output_text === 'string'
-          ? body.output_text
-          : (body.output || []).flatMap(item => item.content || []).map(part => part.text || '').join('\n').trim();
-        return reply(res, 200, { content });
-      } catch (error) {
-        if (!/responses|unsupported|not found|404|endpoint/i.test(error.message || '') && error.status !== 404) throw error;
-      }
+    try {
+      const body = await providerFetch(`${base}/responses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${effectiveKey}` },
+        body: JSON.stringify({
+          model: chosen,
+          instructions: String(system || '').slice(0, 30000),
+          input: String(user || '').slice(0, 120000),
+          max_output_tokens: outputLimit
+        })
+      });
+      const content = typeof body.output_text === 'string'
+        ? body.output_text
+        : (body.output || []).flatMap(item => item.content || []).map(part => part.text || '').join('\n').trim();
+      return reply(res, 200, { content });
+    } catch (error) {
+      if (!/responses|unsupported|not found|404|endpoint/i.test(error.message || '') && error.status !== 404) throw error;
     }
 
     const requestBody = {
@@ -136,7 +127,6 @@ export default async function handler(req, res) {
         throw error;
       }
     }
-
     return reply(res, 200, { content: body.choices?.[0]?.message?.content || '' });
   } catch (error) {
     const status = error?.name === 'AbortError' ? 504 : (error.status || 500);
