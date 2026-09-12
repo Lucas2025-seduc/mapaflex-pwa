@@ -1,5 +1,5 @@
-const CACHE = 'mapaflex-ultimate-v7-secure-license-keys-20260912';
-const CORE = ['/', '/index.html', '/styles.css', '/app-core-1.js', '/app-core-2.js', '/app-core-3.js', '/app-media.js', '/app-ai-1.js', '/app-ai-2.js', '/app-ai-3.js', '/app-ai-4.js', '/app-export.js', '/app-billing.js', '/app-license-sales.js', '/pwa.js', '/manifest.webmanifest', '/icons/icon.svg'];
+const CACHE = 'mapaflex-ultimate-v8-mobile-tablet-20260912';
+const CORE = ['/', '/index.html', '/styles.css', '/app-core-1.js', '/app-core-2.js', '/app-core-3.js', '/app-media.js', '/app-ai-1.js', '/app-ai-2.js', '/app-ai-3.js', '/app-ai-4.js', '/app-export.js', '/app-billing.js', '/app-license-sales.js', '/mobile-ux.js', '/pwa.js', '/manifest.webmanifest', '/icons/icon.svg'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -29,17 +29,11 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(event.request)
         .then(response => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE).then(cache => cache.put(event.request, copy));
-          }
+          const copy = response.clone();
+          caches.open(CACHE).then(cache => cache.put('/index.html', copy));
           return response;
         })
-        .catch(async () => {
-          const exact = await caches.match(event.request);
-          if (exact) return exact;
-          return caches.match('/index.html');
-        })
+        .catch(() => caches.match('/index.html'))
     );
     return;
   }
