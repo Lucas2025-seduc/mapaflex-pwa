@@ -1,39 +1,7 @@
-const NEON_WEBHOOK_RPC = 'https://ep-square-paper-aceqdgpa.apirest.sa-east-1.aws.neon.tech/neondb/rest/v1/rpc/ingest_stripe_webhook';
-
-export async function onRequest(context) {
-  const { request } = context;
-  const headers = {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-    'X-Content-Type-Options': 'nosniff'
-  };
-  const reply = (status, body) => new Response(JSON.stringify(body), { status, headers });
-
-  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
-  if (request.method !== 'POST') return reply(405, { error: 'Método não permitido.' });
-
-  const signature = request.headers.get('stripe-signature') || '';
-  if (!signature || signature.length > 4096) return reply(400, { error: 'Assinatura Stripe ausente ou inválida.' });
-
-  const rawBody = await request.text();
-  if (!rawBody || rawBody.length > 1024 * 1024) return reply(413, { error: 'Payload inválido ou muito grande.' });
-
-  try {
-    const neon = await fetch(NEON_WEBHOOK_RPC, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_raw_body: rawBody, p_signature: signature })
-    });
-    const text = await neon.text();
-    if (!neon.ok) {
-      console.error('[stripe-webhook] Neon rejeitou o evento:', neon.status);
-      return reply(400, { error: 'Webhook rejeitado.' });
-    }
-    let result = { received: true };
-    try { result = JSON.parse(text); } catch {}
-    return reply(200, result);
-  } catch (error) {
-    console.error('[stripe-webhook] Falha ao processar evento:', error?.message || error);
-    return reply(502, { error: 'Falha temporária no processamento.' });
-  }
-}
+import { neon } from '@neondatabase/serverless';
+const enc=new TextEncoder();
+async function verify(body,header,secret){const p=String(header||'').split(',');const t=p.find(x=>x.startsWith('t='))?.slice(2);const sig=p.filter(x=>x.startsWith('v1=')).map(x=>x.slice(3));if(!t||!sig.length||Math.abs(Date.now()/1000-Number(t))>300)return false;const key=await crypto.subtle.importKey('raw',enc.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);const out=new Uint8Array(await crypto.subtle.sign('HMAC',key,enc.encode(`${t}.${body}`)));const hex=[...out].map(b=>b.toString(16).padStart(2,'0')).join('');return sig.includes(hex);}
+const iso=v=>Number(v)>0?new Date(Number(v)*1000).toISOString():null;
+const ls=s=>['active','trialing'].includes(s)?'active':['past_due','unpaid'].includes(s)?'grace':['paused','incomplete'].includes(s)?'suspended':'expired';
+async function upsert(sql,{userId,customerId,subscriptionId,status='active',periodEnd=null,priceId=null}){if(!userId||!subscriptionId)return;const [s]=await sql`insert into mapaflex.subscriptions(auth_user_id,plan_code,stripe_customer_id,stripe_subscription_id,stripe_price_id,status,current_period_end,updated_at) values(${userId},'pro',${customerId},${subscriptionId},${priceId},${status},${periodEnd},now()) on conflict(stripe_subscription_id) do update set auth_user_id=excluded.auth_user_id,stripe_customer_id=excluded.stripe_customer_id,stripe_price_id=coalesce(excluded.stripe_price_id,mapaflex.subscriptions.stripe_price_id),status=excluded.status,current_period_end=coalesce(excluded.current_period_end,mapaflex.subscriptions.current_period_end),updated_at=now() returning id`;const st=ls(status),grace=st==='grace'?new Date(Date.now()+604800000).toISOString():null;let [l]=await sql`select id from mapaflex.licenses where subscription_id=${s.id} limit 1`;if(l)[l]=await sql`update mapaflex.licenses set auth_user_id=${userId},plan_code='pro',status=${st},valid_until=${periodEnd},grace_until=${grace},updated_at=now() where id=${l.id} returning id`;else [l]=await sql`insert into mapaflex.licenses(auth_user_id,subscription_id,plan_code,status,max_devices,valid_until,grace_until) values(${userId},${s.id},'pro',${st},2,${periodEnd},${grace}) returning id`;const enabled=st==='active'||st==='grace';for(const f of ['premium_ai','advanced_export'])await sql`insert into mapaflex.entitlements(license_id,feature_key,enabled) values(${l.id},${f},${enabled}) on conflict(license_id,feature_key) do update set enabled=excluded.enabled,updated_at=now()`;}
+export async function onRequest({request,env}){const headers={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'};const reply=(s,b)=>new Response(JSON.stringify(b),{status:s,headers});if(request.method==='OPTIONS')return new Response(null,{status:204,headers});if(request.method!=='POST')return reply(405,{error:'Método não permitido.'});try{if(!env.DATABASE_URL||!env.STRIPE_WEBHOOK_SECRET)throw new Error('Backend não configurado');const body=await request.text();if(!await verify(body,request.headers.get('stripe-signature'),env.STRIPE_WEBHOOK_SECRET))return reply(400,{error:'Assinatura inválida.'});const event=JSON.parse(body),sql=neon(env.DATABASE_URL);const [claim]=await sql`insert into mapaflex.webhook_events(provider,provider_event_id,event_type,livemode) values('stripe',${event.id},${event.type},${!!event.livemode}) on conflict(provider_event_id) do nothing returning id`;if(!claim)return reply(200,{received:true,duplicate:true});try{const o=event.data?.object||{};if(event.type==='checkout.session.completed'){const userId=String(o.client_reference_id||''),customerId=typeof o.customer==='string'?o.customer:o.customer?.id,subscriptionId=typeof o.subscription==='string'?o.subscription:o.subscription?.id;if(userId&&customerId)await sql`insert into mapaflex.billing_customers(auth_user_id,email,stripe_customer_id) values(${userId},${o.customer_details?.email||null},${customerId}) on conflict(auth_user_id) do update set stripe_customer_id=excluded.stripe_customer_id,email=coalesce(excluded.email,mapaflex.billing_customers.email),updated_at=now()`;if(userId&&subscriptionId)await upsert(sql,{userId,customerId,subscriptionId,status:'active'});}if(event.type.startsWith('customer.subscription.')){const customerId=typeof o.customer==='string'?o.customer:o.customer?.id;const [c]=customerId?await sql`select auth_user_id from mapaflex.billing_customers where stripe_customer_id=${customerId} limit 1`:[];const item=o.items?.data?.[0],priceId=typeof item?.price==='string'?item.price:item?.price?.id,userId=String(o.metadata?.auth_user_id||c?.auth_user_id||'');await upsert(sql,{userId,customerId,subscriptionId:o.id,status:o.status||'incomplete',periodEnd:iso(o.current_period_end||item?.current_period_end),priceId});}if(event.type==='invoice.payment_failed'){const customerId=typeof o.customer==='string'?o.customer:o.customer?.id;if(customerId)await sql`update mapaflex.licenses l set status='grace',grace_until=now()+interval '7 days',updated_at=now() from mapaflex.subscriptions s where l.subscription_id=s.id and s.stripe_customer_id=${customerId}`;}await sql`update mapaflex.webhook_events set processed=true,processed_at=now(),processing_error=null where id=${claim.id}`;return reply(200,{received:true});}catch(e){await sql`update mapaflex.webhook_events set processing_error=${String(e.message||e).slice(0,2000)} where id=${claim.id}`;throw e;}}catch(e){console.error('[stripe-webhook]',e);return reply(500,{error:'Falha no processamento do webhook.'});}}
