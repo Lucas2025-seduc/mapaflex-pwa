@@ -13,11 +13,12 @@ export async function onRequest(context) {
   return new Response(JSON.stringify({
     ok: true,
     code: 'OK',
-    build: '2026-09-12-audit-v6',
+    build: '2026-09-12-secure-license-v7',
     platform: 'cloudflare-workers',
     authentication: 'neon-auth',
     licenseStore: 'neon-data-api',
     licenseSales: 'whatsapp-manual',
+    licenseKeys: 'server-generated-one-time-sha256',
     whatsappPurchase: true,
     aiKeys: 'user-supplied-only',
     stripeWebhook: false,
