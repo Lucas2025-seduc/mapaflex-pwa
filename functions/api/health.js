@@ -1,4 +1,4 @@
-const DATA_API_URL = 'https://ep-square-paper-aceqdgpa.apirest.sa-east-1.aws.neon.tech/neondb/rest/v1';
+import { neon } from '@neondatabase/serverless';
 
 const headers = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -7,51 +7,52 @@ const headers = {
 };
 
 export async function onRequest(context) {
-  const { request } = context;
+  const { request, env } = context;
+
   if (request.method !== 'GET') {
     return new Response(JSON.stringify({ ok: false, code: 'METHOD_NOT_ALLOWED' }), { status: 405, headers });
   }
 
-  let dataApiReachable = false;
-  let billingWebhookReady = false;
-  let billingProbeCode = 'UNREACHABLE';
-  let billingRpcHttpStatus = null;
-  let billingRpcDetail = null;
-
-  try {
-    const r = await fetch(`${DATA_API_URL}/rpc/process_stripe_webhook`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Profile': 'mapaflex',
-        'Accept-Profile': 'mapaflex'
-      },
-      body: JSON.stringify({ p_raw_body: '{}', p_signature: 't=0,v1=0' })
-    });
-    billingRpcHttpStatus = r.status;
-    const text = await r.text();
-    let body = null;
-    try { body = text ? JSON.parse(text) : null; } catch {}
-    dataApiReachable = r.ok;
-    billingProbeCode = body?.code || body?.code_hint || (r.ok ? 'RPC_OK' : `HTTP_${r.status}`);
-    billingWebhookReady = r.ok && body?.code === 'INVALID_SIGNATURE';
-    if (!r.ok) billingRpcDetail = String(body?.message || body?.details || text || '').slice(0, 300) || null;
-  } catch (error) {
-    billingProbeCode = 'UNREACHABLE';
-    billingRpcDetail = String(error?.message || error || '').slice(0, 300) || null;
-  }
-
-  const body = {
-    ok: dataApiReachable,
-    code: dataApiReachable ? 'OK' : 'NEON_DATA_API_UNREACHABLE',
+  const base = {
+    ok: false,
     platform: 'cloudflare-workers',
     storage: 'neon-postgres',
-    dataApiReachable,
-    billingWebhookReady,
-    billingProbeCode,
-    billingRpcHttpStatus,
-    billingRpcDetail
+    databaseUrlPresent: Boolean(env.DATABASE_URL),
+    stripeWebhookSecretPresent: Boolean(env.STRIPE_WEBHOOK_SECRET)
   };
 
-  return new Response(JSON.stringify(body), { status: dataApiReachable ? 200 : 503, headers });
+  if (!env.DATABASE_URL) {
+    return new Response(JSON.stringify({ ...base, code: 'DB_URL_MISSING' }), { status: 503, headers });
+  }
+
+  if (!env.STRIPE_WEBHOOK_SECRET) {
+    return new Response(JSON.stringify({ ...base, code: 'STRIPE_SECRET_MISSING' }), { status: 503, headers });
+  }
+
+  let sql;
+  try {
+    sql = neon(env.DATABASE_URL);
+    await sql`select 1 as ok`;
+  } catch {
+    return new Response(JSON.stringify({ ...base, code: 'DB_CONNECTION_FAILED' }), { status: 503, headers });
+  }
+
+  try {
+    const rows = await sql`select code from mapaflex.plans order by code limit 5`;
+    return new Response(JSON.stringify({
+      ...base,
+      ok: true,
+      code: 'OK',
+      databaseConnected: true,
+      mapaflexSchemaReadable: true,
+      planCodes: rows.map(row => row.code)
+    }), { status: 200, headers });
+  } catch {
+    return new Response(JSON.stringify({
+      ...base,
+      code: 'SCHEMA_ACCESS_FAILED',
+      databaseConnected: true,
+      mapaflexSchemaReadable: false
+    }), { status: 503, headers });
+  }
 }
