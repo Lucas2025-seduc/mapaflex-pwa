@@ -28,7 +28,7 @@ export default {
     if (!isAppHtml) return response;
 
     const html = await response.text();
-    const marker = '<script src="/mobile-ui-hotfix.js"></script><script src="/presentation-ux.js"></script>';
+    const marker = '<script src="/mobile-ui-hotfix.js"></script><script src="/presentation-ux.js"></script><script src="/nexus-ui.js"></script>';
     const body = html.includes(marker) ? html : html.replace('</body>', `${marker}</body>`);
     const headers = new Headers(response.headers);
     headers.set('Cache-Control', 'no-cache');
