@@ -10,13 +10,21 @@
   let enhancing=false;
   let redeemClient=null;
 
-  function loadMobileUx(){
-    if(document.querySelector('script[data-mapaflex-mobile-ux],script[src="/mobile-ux.js"]'))return;
-    const s=document.createElement('script');
-    s.src='/mobile-ux.js';
-    s.defer=true;
-    s.dataset.mapaflexMobileUx='1';
-    document.head.appendChild(s);
+  function loadEnhancements(){
+    const scripts=[
+      ['/mobile-ux.js','mapaflexMobileUx'],
+      ['/mobile-ui-hotfix.js','mapaflexMobileHotfix'],
+      ['/presentation-ux.js','mapaflexPresentationUx'],
+      ['/nexus-ui.js','nexusUi']
+    ];
+    for(const [src,key] of scripts){
+      if(document.querySelector(`script[src="${src}"]`)) continue;
+      const s=document.createElement('script');
+      s.src=src;
+      s.defer=true;
+      s.dataset[key]='1';
+      document.head.appendChild(s);
+    }
   }
 
   function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -173,7 +181,7 @@
   }
 
   const start=()=>{
-    loadMobileUx();
+    loadEnhancements();
     hardenAiUi();
     const modal=document.getElementById('mfLicenseModal');
     if(modal){
