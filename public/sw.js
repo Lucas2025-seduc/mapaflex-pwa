@@ -1,4 +1,4 @@
-const CACHE = 'nexus-mapas-v12-brand-force-20260912';
+const CACHE = 'nexus-mapas-v13-account-stability-20260912';
 const CORE = ['/', '/index.html', '/styles.css', '/app-core-1.js', '/app-core-2.js', '/app-core-3.js', '/app-media.js', '/app-ai-1.js', '/app-ai-2.js', '/app-ai-3.js', '/app-ai-4.js', '/app-export.js', '/app-billing.js', '/app-license-sales.js', '/mobile-ux.js', '/mobile-ui-hotfix.js', '/presentation-ux.js', '/nexus-ui.js', '/pwa.js', '/manifest.webmanifest', '/icons/icon.svg'];
 
 self.addEventListener('install', event => {
@@ -34,7 +34,7 @@ self.addEventListener('fetch', event => {
 
   if (url.origin === self.location.origin) {
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, { cache: 'no-cache' })
         .then(response => {
           if (response.ok) {
             const copy = response.clone();
