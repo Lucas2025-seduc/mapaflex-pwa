@@ -12,13 +12,12 @@
 
   function loadEnhancements(){
     const scripts=[
-      ['/mobile-ux.js','mapaflexMobileUx'],
-      ['/mobile-ui-hotfix.js','mapaflexMobileHotfix'],
-      ['/presentation-ux.js','mapaflexPresentationUx'],
-      ['/nexus-ui.js','nexusUi']
+      ['/presentation-ux.js?v=16','nexusPresentationUx'],
+      ['/nexus-ui.js?v=16','nexusUi']
     ];
     for(const [src,key] of scripts){
-      if(document.querySelector(`script[src="${src}"]`)) continue;
+      const path=src.split('?')[0];
+      if(document.querySelector(`script[src^="${path}"]`)) continue;
       const s=document.createElement('script');
       s.src=src;
       s.defer=true;
@@ -67,6 +66,7 @@
   async function client(){
     if(redeemClient) return redeemClient;
     const mod=await import(SDK_URL);
+    if(typeof mod.createClient!=='function') throw new Error('SDK de autenticação indisponível.');
     redeemClient=mod.createClient({auth:{url:AUTH_URL},dataApi:{url:DATA_URL,options:{db:{schema:'mapaflex'}}}});
     return redeemClient;
   }
@@ -85,7 +85,7 @@
       if(row?.success===false) throw new Error(row.message||'Código não aceito.');
       statusEl.className='mf-redeem-status good';
       statusEl.textContent='Licença ativada com sucesso. Atualizando sua conta…';
-      const billing=window.MapaFlexBilling;
+      const billing=window.NexusMapasBilling||window.MapaFlexBilling;
       if(billing?.refresh) await billing.refresh();
       setTimeout(scheduleEnhance,20);
     }catch(err){
@@ -100,7 +100,7 @@
     const panel=document.createElement('div');
     panel.id='mfRedeemLicenseSales';
     panel.className='mf-redeem';
-    panel.innerHTML='<div class="mf-redeem-title">Já tem um código? Ative aqui</div><div class="mf-redeem-row"><input id="mfLicenseCodeInput" class="mf-redeem-input" autocomplete="off" spellcheck="false" maxlength="64" placeholder="NX-XXXX-XXXX-…"><button id="mfRedeemLicenseBtn" class="mf-redeem-btn" type="button">Ativar código</button></div><div id="mfRedeemLicenseStatus" class="mf-redeem-status">O código é de uso único e fica vinculado à sua conta depois da ativação.</div>';
+    panel.innerHTML='<div class="mf-redeem-title">Já tem um código? Ative aqui</div><div class="mf-redeem-row"><input id="mfLicenseCodeInput" class="mf-redeem-input" autocomplete="off" spellcheck="false" maxlength="64" placeholder="MF-XXXX-XXXX-…"><button id="mfRedeemLicenseBtn" class="mf-redeem-btn" type="button">Ativar código</button></div><div id="mfRedeemLicenseStatus" class="mf-redeem-status">O código é de uso único e fica vinculado à sua conta depois da ativação.</div>';
     const input=panel.querySelector('#mfLicenseCodeInput');
     const btn=panel.querySelector('#mfRedeemLicenseBtn');
     const statusEl=panel.querySelector('#mfRedeemLicenseStatus');
@@ -118,7 +118,7 @@
       hardenAiUi();
 
       const root=document.getElementById('mfLicenseBody');
-      const billing=window.MapaFlexBilling;
+      const billing=window.NexusMapasBilling||window.MapaFlexBilling;
       if(!root||!billing) return;
 
       const user=billing.user;
