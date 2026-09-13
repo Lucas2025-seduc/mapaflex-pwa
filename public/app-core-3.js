@@ -164,7 +164,7 @@
 
   $('imageInput').onchange=(ev)=>{
     const file=ev.target.files[0]; if(!file || !selected) return;
-    if(file.size > 900*1024){ alert('Para manter o mapa leve, use imagens de até 900 KB.'); ev.target.value=''; return; }
+    if(file.size > 5*1024*1024){ alert('Use imagens de até 5 MB.'); ev.target.value=''; return; }
     const fr=new FileReader();
     fr.onload=()=>{
       const n=nodeById(selected); if(!n) return;
