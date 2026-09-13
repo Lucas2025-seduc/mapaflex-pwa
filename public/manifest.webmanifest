@@ -1,14 +1,14 @@
 {
-  "name": "MapaFlex Ultimate — Mapas Mentais e Conceituais",
-  "short_name": "MapaFlex",
+  "name": "Nexus Mapas — Mapas Mentais e Conceituais",
+  "short_name": "Nexus Mapas",
   "description": "Editor PWA avançado de mapas mentais e conceituais com IA, multimídia, IndexedDB, apresentação e exportação vetorial.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#f5f7fb",
-  "theme_color": "#2563eb",
+  "background_color": "#eef4fb",
+  "theme_color": "#0f6fea",
   "lang": "pt-BR",
   "categories": ["education", "productivity", "utilities"],
   "icons": [
