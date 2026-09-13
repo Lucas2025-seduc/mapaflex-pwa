@@ -1,10 +1,10 @@
-const CACHE = 'nexus-mapas-v19-account-image-drag-20260913';
+const CACHE = 'nexus-mapas-v20-install-button-20260913';
 const CORE = [
   '/', '/index.html', '/404.html', '/styles.css',
   '/app-core-1.js', '/app-core-2.js', '/app-core-3.js',
   '/app-media.js', '/app-ai-1.js', '/app-ai-2.js', '/app-ai-3.js', '/app-ai-4.js',
   '/nexus-map-features.js', '/nexus-editor-v17.js', '/app-export.js', '/app-billing.js', '/app-license-sales.js',
-  '/mobile-ux.js', '/mobile-ui-hotfix.js', '/presentation-ux.js', '/nexus-ui.js', '/pwa.js',
+  '/mobile-ux.js', '/mobile-ui-hotfix.js', '/presentation-ux.js', '/nexus-ui.js', '/install-button-fix.js', '/pwa.js',
   '/manifest.webmanifest', '/icons/icon.svg'
 ];
 
