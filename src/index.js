@@ -23,7 +23,7 @@ export default {
       html = html.replace('<script src="/app-export.js"></script>', '<script src="/nexus-map-features.js"></script>\n<script src="/app-export.js"></script>');
     }
 
-    for (const src of ['/mobile-ui-hotfix.js', '/nexus-ui.js', '/presentation-ux.js']) {
+    for (const src of ['/mobile-ui-hotfix.js', '/nexus-ui.js', '/presentation-ux.js', '/install-button-fix.js']) {
       if (!html.includes(src)) html = html.replace('</body>', `<script src="${src}"></script>\n</body>`);
     }
 
