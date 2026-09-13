@@ -1,4 +1,4 @@
-const CACHE = 'nexus-mapas-v17-inline-links-panels-area-20260913';
+const CACHE = 'nexus-mapas-v18-images-5mb-20260913';
 const CORE = [
   '/', '/index.html', '/404.html', '/styles.css',
   '/app-core-1.js', '/app-core-2.js', '/app-core-3.js',
