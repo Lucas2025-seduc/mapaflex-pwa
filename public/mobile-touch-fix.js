@@ -1,5 +1,23 @@
 (()=>{
   'use strict';
+
+  // Branding is applied here too because this file is bundled into /mobile-ux.js.
+  // That makes the rename work even when an older cached app shell is still open.
+  document.title='Nexus Mapas — Mapas mentais e conceituais';
+  const brand=document.querySelector('.brand');
+  if(brand && !brand.querySelector('.nexus-name')){
+    brand.innerHTML='<span class="nexus-mark">⌘</span><span class="nexus-brand-copy"><span class="nexus-name">Nexus Mapas</span><span class="nexus-tagline">Ideias que conectam</span></span>';
+  }
+  const desc=document.querySelector('meta[name="description"]');
+  if(desc) desc.content='Nexus Mapas — editor visual de mapas mentais e conceituais com IA, multimídia, apresentação e exportação.';
+
+  if(!document.querySelector('script[data-nexus-ui],script[src^="/nexus-ui.js"]')){
+    const s=document.createElement('script');
+    s.src='/nexus-ui.js?v=20260912-2209';
+    s.dataset.nexusUi='1';
+    document.head.appendChild(s);
+  }
+
   if(window.__MapaFlexTouchBridgeInstalled) return;
   window.__MapaFlexTouchBridgeInstalled=true;
 
@@ -51,12 +69,4 @@
   document.addEventListener('touchstart',e=>{
     if((document.body.classList.contains('mf-tools-open')||document.body.classList.contains('mf-inspector-open'))&&!e.target.closest('.sidebar,.inspector,.mf-mobile-dock')) e.preventDefault();
   },{passive:false});
-
-  if(!document.querySelector('script[data-nexus-ui],script[src="/nexus-ui.js"]')){
-    const s=document.createElement('script');
-    s.src='/nexus-ui.js';
-    s.defer=true;
-    s.dataset.nexusUi='1';
-    document.head.appendChild(s);
-  }
 })();
