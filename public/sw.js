@@ -1,9 +1,9 @@
-const CACHE = 'nexus-mapas-v16-multimap-presentation-20260913';
+const CACHE = 'nexus-mapas-v17-inline-links-panels-area-20260913';
 const CORE = [
   '/', '/index.html', '/404.html', '/styles.css',
   '/app-core-1.js', '/app-core-2.js', '/app-core-3.js',
   '/app-media.js', '/app-ai-1.js', '/app-ai-2.js', '/app-ai-3.js', '/app-ai-4.js',
-  '/nexus-map-features.js', '/app-export.js', '/app-billing.js', '/app-license-sales.js',
+  '/nexus-map-features.js', '/nexus-editor-v17.js', '/app-export.js', '/app-billing.js', '/app-license-sales.js',
   '/mobile-ux.js', '/mobile-ui-hotfix.js', '/presentation-ux.js', '/nexus-ui.js', '/pwa.js',
   '/manifest.webmanifest', '/icons/icon.svg'
 ];
