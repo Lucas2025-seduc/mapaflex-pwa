@@ -1,12 +1,27 @@
-const CACHE = 'nexus-mapas-v14-stability-suite-20260912';
-const CORE = ['/', '/index.html', '/styles.css', '/app-core-1.js', '/app-core-2.js', '/app-core-3.js', '/app-media.js', '/app-ai-1.js', '/app-ai-2.js', '/app-ai-3.js', '/app-ai-4.js', '/app-export.js', '/app-billing.js', '/app-license-sales.js', '/mobile-ux.js', '/mobile-ui-hotfix.js', '/presentation-ux.js', '/nexus-ui.js', '/pwa.js', '/manifest.webmanifest', '/icons/icon.svg'];
+const CACHE = 'nexus-mapas-v15-consolidated-20260913';
+const CORE = [
+  '/', '/index.html', '/404.html', '/styles.css',
+  '/app-core-1.js', '/app-core-2.js', '/app-core-3.js',
+  '/app-media.js', '/app-ai-1.js', '/app-ai-2.js', '/app-ai-3.js', '/app-ai-4.js',
+  '/app-export.js', '/app-billing.js', '/app-license-sales.js',
+  '/presentation-ux.js', '/nexus-ui.js', '/pwa.js',
+  '/manifest.webmanifest', '/icons/icon.svg'
+];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(CACHE)
+      .then(cache => cache.addAll(CORE))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('message', event => {
@@ -47,5 +62,5 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  event.respondWith(caches.match(event.request).then(hit => hit || fetch(event.request)));
+  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
 });
