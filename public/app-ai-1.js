@@ -1,13 +1,21 @@
   function aiConfig(){
     const provider=$('aiProvider').value;
-    return{provider,key:$('aiApiKey').value.trim(),model:$('aiModel').value.trim(),serverKey:!!$('aiServerKey')?.checked};
+    return{provider,key:$('aiApiKey').value.trim(),model:$('aiModel').value.trim(),serverKey:false};
   }
   function setAiStatus(text,kind=''){
     const el=$('aiStatus');el.textContent=text;el.className='aiStatus'+(kind?' '+kind:'');
   }
   function saveAiSessionConfig(){
-    const {provider,key,model,serverKey}=aiConfig();
-    try{sessionStorage.setItem('MapaFlexAIKey:'+provider,key);localStorage.setItem('MapaFlexAIProvider',provider);localStorage.setItem('MapaFlexAIModel:'+provider,model);localStorage.setItem('MapaFlexAIServerKey',serverKey?'1':'0');}catch(e){}
+    const {provider,key,model}=aiConfig();
+    try{sessionStorage.setItem('MapaFlexAIKey:'+provider,key);localStorage.setItem('MapaFlexAIProvider',provider);localStorage.setItem('MapaFlexAIModel:'+provider,model);localStorage.setItem('MapaFlexAIServerKey','0');}catch(e){}
+  }
+  async function aiProxyHeaders(){
+    const billing=window.NexusMapasBilling||window.MapaFlexBilling;
+    if(!billing?.user) throw new Error('Entre na sua conta para usar a IA Premium.');
+    if(!billing?.hasEntitlement?.('premium_ai')) throw new Error('A IA requer uma licença Nexus Mapas Pro ativa.');
+    const token=await billing.getAccessToken?.();
+    if(!token) throw new Error('Não foi possível validar sua sessão. Entre novamente na conta.');
+    return{'Content-Type':'application/json','Authorization':'Bearer '+token};
   }
   function extractOpenAiText(data){
     if(typeof data?.output_text==='string') return data.output_text;
@@ -22,14 +30,15 @@
     return data;
   }
   async function testAiConnection(){
-    const {provider,key,model,serverKey}=aiConfig();
-    if((!key&&!serverKey)||!model){alert(serverKey?'Informe o modelo.':'Informe a chave e o modelo, ou marque a opção de usar a chave do servidor.');return;}
-    saveAiSessionConfig();setAiStatus('Testando chave, modelo e uma chamada real pelo proxy Vercel...','busy');
+    const {provider,key,model}=aiConfig();
+    if(!key||!model){alert('Informe sua chave da API e o modelo.');return;}
+    saveAiSessionConfig();setAiStatus('Validando licença e testando chave/modelo pelo Cloudflare...','busy');
     try{
-      const models=await fetchJsonOrThrow('/api/ai-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider,key:serverKey?'':key,model,action:'models'})});
+      const headers=await aiProxyHeaders();
+      const models=await fetchJsonOrThrow('/api/ai-proxy',{method:'POST',headers,body:JSON.stringify({provider,key,model,action:'models'})});
       const found=Array.isArray(models?.models)&&models.models.some(m=>String(m)===model||String(m).replace(/^models\//,'')===model);
-      const out=await fetchJsonOrThrow('/api/ai-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider,key:serverKey?'':key,model,action:'chat',system:'Você é um teste de conectividade. Responda somente OK.',user:'Responda exatamente com OK.',json:false,maxTokens:32})});
-      setAiStatus(`${serverKey?'Chave do servidor':'Chave válida'} • ${found?'modelo encontrado':'modelo respondeu'} • teste: ${out?.content||'OK'}`,'ok');
+      const out=await fetchJsonOrThrow('/api/ai-proxy',{method:'POST',headers,body:JSON.stringify({provider,key,model,action:'chat',system:'Você é um teste de conectividade. Responda somente OK.',user:'Responda exatamente com OK.',json:false,maxTokens:32})});
+      setAiStatus(`Licença validada • chave válida • ${found?'modelo encontrado':'modelo respondeu'} • teste: ${out?.content||'OK'}`,'ok');
     }catch(err){console.error(err);setAiStatus('Falha: '+err.message,'err');}
   }
   function selectedNodeContext(){const n=nodeById(selected);return n?{id:n.id,text:n.text,note:n.note||'',link:n.link||'',parent:n.parent,attachments:(n.attachments||[]).map(a=>({name:a.name,kind:a.kind}))}:null;}
@@ -83,7 +92,7 @@
     updateAiMapOptionsVisibility();
   }
   function aiSystemPrompt(expectJson=false){
-    return `Você é o assistente pedagógico do MapaFlex, um editor de mapas mentais e conceituais. Responda em português do Brasil, com clareza, rigor e organização. Considere a estrutura do mapa fornecida. Não invente links específicos como se fossem verificados; quando sugerir materiais, deixe claro quando a URL não foi confirmada. ${expectJson?'Quando solicitado JSON, devolva SOMENTE JSON válido, sem markdown, comentários ou texto fora do JSON.':''}`;
+    return `Você é o assistente pedagógico do Nexus Mapas, um editor de mapas mentais e conceituais. Responda em português do Brasil, com clareza, rigor e organização. Considere a estrutura do mapa fornecida. Não invente links específicos como se fossem verificados; quando sugerir materiais, deixe claro quando a URL não foi confirmada. ${expectJson?'Quando solicitado JSON, devolva SOMENTE JSON válido, sem markdown, comentários ou texto fora do JSON.':''}`;
   }
   function buildAiPrompt(action,userPrompt){
     const node=selectedNodeContext(); const ctx=compactMapContext(); const extra=userPrompt?.trim()||'';
@@ -113,7 +122,7 @@ REGRAS PEDAGÓGICAS E ESTRUTURAIS:
 5. Cada note deve complementar o título, não apenas repeti-lo.
 6. Quando houver processos, preserve sequência lógica; quando houver classificações, separe categorias e subtipos.
 7. Para o modo ${p.label}, crie ramificações suficientes para que o mapa realmente reflita o nível escolhido.
-8. Não use coordenadas; o MapaFlex fará o layout.
+8. Não use coordenadas; o Nexus Mapas fará o layout.
 
 Retorne SOMENTE JSON válido neste formato exato:
 {"title":"...","mode":"mind","nodes":[{"key":"root","text":"Tema central","parent":null,"note":""},{"key":"n1","text":"...","parent":"root","note":"..."}],"relations":[{"from":"n1","to":"n2","label":"frase curta de relação"}]}.
