@@ -1,5 +1,5 @@
-const CACHE = 'mapaflex-ultimate-v10-mobile-fixes-20260912';
-const CORE = ['/', '/index.html', '/styles.css', '/app-core-1.js', '/app-core-2.js', '/app-core-3.js', '/app-media.js', '/app-ai-1.js', '/app-ai-2.js', '/app-ai-3.js', '/app-ai-4.js', '/app-export.js', '/app-billing.js', '/app-license-sales.js', '/mobile-ux.js', '/pwa.js', '/manifest.webmanifest', '/icons/icon.svg'];
+const CACHE = 'nexus-mapas-v11-layout-20260912';
+const CORE = ['/', '/index.html', '/styles.css', '/app-core-1.js', '/app-core-2.js', '/app-core-3.js', '/app-media.js', '/app-ai-1.js', '/app-ai-2.js', '/app-ai-3.js', '/app-ai-4.js', '/app-export.js', '/app-billing.js', '/app-license-sales.js', '/mobile-ux.js', '/mobile-ui-hotfix.js', '/presentation-ux.js', '/nexus-ui.js', '/pwa.js', '/manifest.webmanifest', '/icons/icon.svg'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE)).then(() => self.skipWaiting()));
