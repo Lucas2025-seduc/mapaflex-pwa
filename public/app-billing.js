@@ -6,11 +6,12 @@
     neonDataApiUrl: 'https://ep-square-paper-aceqdgpa.apirest.sa-east-1.aws.neon.tech/neondb/rest/v1',
     sdkUrl: 'https://esm.sh/@neondatabase/neon-js@0.7.0-beta?bundle',
     whatsappNumber: '558899361992',
-    whatsappDisplay: '88 99361992'
+    whatsappDisplay: '(88) 9936-1992'
   });
 
   const state = {
     client: null,
+    clientPromise: null,
     user: null,
     plan: 'free',
     licenseStatus: null,
@@ -27,6 +28,8 @@
     exportPdf: 'advanced_export'
   });
 
+  let lastFocused=null;
+
   const escapeHtml = value => String(value ?? '').replace(/[&<>'\"]/g, ch => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '\"': '&quot;'
   }[ch]));
@@ -42,7 +45,7 @@
     .mf-buy{display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;border:0;border-radius:11px;padding:12px 14px;font-weight:800;cursor:pointer;background:#16a34a;color:#fff}.mf-buy:hover{filter:brightness(.96)}
     .mf-account-box{display:grid;gap:10px}.mf-status{padding:10px;border-radius:10px;background:#f1f5f9;font-size:13px;line-height:1.45}.mf-status.good{background:#dcfce7;color:#166534}.mf-status.warn{background:#fef3c7;color:#92400e}.mf-status.bad{background:#fee2e2;color:#991b1b}
     .mf-plan-card{border:1px solid #dbeafe;background:#eff6ff;border-radius:12px;padding:13px}.mf-plan-card strong{font-size:18px}.mf-plan-card small{display:block;color:#475569;margin-top:3px;line-height:1.45}.mf-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;font-size:11px}
-    .mf-row{display:flex;gap:8px;flex-wrap:wrap}.mf-row>*{flex:1;min-width:120px}.mf-note{font-size:12px;color:#64748b;line-height:1.45}.mf-hidden{display:none!important}.mf-premium-lock{opacity:.72;position:relative}.mf-premium-lock::after{content:' LIC';font-size:9px;font-weight:800;background:#7c3aed;color:#fff;padding:2px 4px;border-radius:5px;margin-left:4px}
+    .mf-row{display:flex;gap:8px;flex-wrap:wrap}.mf-row>*{flex:1;min-width:120px}.mf-note{font-size:12px;color:#64748b;line-height:1.45}.mf-hidden{display:none!important}.mf-premium-lock{opacity:.72;position:relative}.mf-premium-lock::after{content:' PRO';font-size:9px;font-weight:800;background:#7c3aed;color:#fff;padding:2px 4px;border-radius:5px;margin-left:4px}
   `;
 
   function injectUi(){
@@ -54,31 +57,51 @@
     }
     if(!document.getElementById('mfLicenseModal')){
       const modal=document.createElement('div');modal.id='mfLicenseModal';modal.className='mf-license-backdrop';modal.setAttribute('aria-hidden','true');
-      modal.innerHTML=`<div class="mf-license-card" role="dialog" aria-modal="true" aria-labelledby="mfLicenseTitle"><div class="mf-license-head"><h2 id="mfLicenseTitle">Conta e licença MapaFlex</h2><button class="mf-close" id="mfLicenseClose" type="button">✕</button></div><div id="mfLicenseBody"><div class="mf-status">Carregando conta…</div></div></div>`;
+      modal.innerHTML=`<div class="mf-license-card" role="dialog" aria-modal="true" aria-labelledby="mfLicenseTitle"><div class="mf-license-head"><h2 id="mfLicenseTitle">Conta e licença Nexus Mapas</h2><button class="mf-close" id="mfLicenseClose" type="button" aria-label="Fechar conta e licença">✕</button></div><div id="mfLicenseBody"><div class="mf-status">Carregando conta…</div></div></div>`;
       document.body.appendChild(modal);modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});modal.querySelector('#mfLicenseClose').addEventListener('click',closeModal);
     }
     markPremiumButtons();
   }
 
   function modal(){return document.getElementById('mfLicenseModal');}
-  function openModal(){const m=modal();if(!m)return;m.classList.add('open');m.setAttribute('aria-hidden','false');renderModal();}
-  function closeModal(){const m=modal();if(!m)return;m.classList.remove('open');m.setAttribute('aria-hidden','true');}
+  function focusModal(){requestAnimationFrame(()=>{const m=modal();if(!m?.classList.contains('open'))return;(m.querySelector('#mfEmail')||m.querySelector('#mfLicenseClose')||m.querySelector('button,input'))?.focus?.();});}
+  function openModal(){const m=modal();if(!m)return;lastFocused=document.activeElement instanceof HTMLElement?document.activeElement:null;m.classList.add('open');m.setAttribute('aria-hidden','false');renderModal();focusModal();}
+  function closeModal(){const m=modal();if(!m)return;m.classList.remove('open');m.setAttribute('aria-hidden','true');const target=lastFocused;lastFocused=null;setTimeout(()=>target?.focus?.(),0);}
   function setStatus(message,kind=''){const box=document.getElementById('mfLicenseStatus');if(box){box.className=`mf-status ${kind}`.trim();box.textContent=message;}}
   function currentUserFrom(result){return result?.data?.user||result?.user||result?.data?.session?.user||result?.session?.user||null;}
   function whatsappUrl(email,userId){
-    const text=`Olá! Quero adquirir uma licença MapaFlex Pro.\n\nE-mail da conta: ${email}\nID da conta: ${userId}\n\nPode me orientar sobre a compra e a ativação da licença?`;
+    const text=`Olá! Quero adquirir uma licença Nexus Mapas Pro.\n\nE-mail da conta: ${email}\nID da conta: ${userId}\n\nPode me orientar sobre a compra e a ativação da licença?`;
     return `https://wa.me/${CONFIG.whatsappNumber}?text=${encodeURIComponent(text)}`;
   }
 
+  function timeoutPromise(ms,message){return new Promise((_,reject)=>setTimeout(()=>reject(new Error(message)),ms));}
   async function loadClient(){
     if(state.client)return state.client;
-    const mod=await import(CONFIG.sdkUrl);if(typeof mod.createClient!=='function')throw new Error('SDK do Neon indisponível.');
-    state.client=mod.createClient({auth:{url:CONFIG.neonAuthUrl},dataApi:{url:CONFIG.neonDataApiUrl,options:{db:{schema:'mapaflex'}}}});return state.client;
+    if(state.clientPromise)return state.clientPromise;
+    state.clientPromise=Promise.race([
+      import(CONFIG.sdkUrl).then(mod=>{
+        if(typeof mod.createClient!=='function')throw new Error('SDK do Neon indisponível.');
+        return mod.createClient({auth:{url:CONFIG.neonAuthUrl},dataApi:{url:CONFIG.neonDataApiUrl,options:{db:{schema:'mapaflex'}}}});
+      }),
+      timeoutPromise(15000,'A conexão de conta demorou demais. Verifique a internet e tente novamente.')
+    ]);
+    try{state.client=await state.clientPromise;return state.client;}finally{if(!state.client)state.clientPromise=null;}
   }
 
   async function refreshSession(){
     const client=await loadClient();const result=await client.auth.getSession();if(result?.error)throw new Error(result.error.message||'Não foi possível consultar a sessão.');
     state.user=currentUserFrom(result);return state.user;
+  }
+
+  async function getAccessToken(){
+    const client=await loadClient();
+    if(typeof client?.auth?.getJWTToken!=='function') return '';
+    try{
+      const result=await client.auth.getJWTToken();
+      if(typeof result==='string') return result;
+      const token=result?.data?.token||result?.data?.access_token||result?.token||result?.access_token||result?.data;
+      return typeof token==='string'?token:'';
+    }catch(err){console.warn('[Nexus Mapas] token de autenticação indisponível:',err?.message||err);return '';}
   }
 
   async function refreshAccess(){
@@ -89,7 +112,7 @@
       const rows=Array.isArray(query?.data)?query.data:(Array.isArray(query)?query:[]);
       for(const row of rows){if(row?.plan_code)state.plan=row.plan_code;if(row?.license_status)state.licenseStatus=row.license_status;if(row?.valid_until)state.validUntil=row.valid_until;if(row?.feature_key)state.entitlements[row.feature_key]=Boolean(row.enabled);}
       if(!['active','grace'].includes(state.licenseStatus||'')){state.plan='free';state.entitlements=Object.create(null);}
-    }catch(err){console.warn('[MapaFlex License] licença indisponível:',err?.message||err);}
+    }catch(err){console.warn('[Nexus Mapas] licença indisponível:',err?.message||err);}
     updateUi();
   }
 
@@ -102,33 +125,38 @@
     if(!state.ready){body.innerHTML='<div class="mf-status">Carregando conta…</div>';return;}
     if(!state.user){
       body.innerHTML=`<div class="mf-tabs"><button class="mf-tab active" data-tab="signin" type="button">Entrar</button><button class="mf-tab" data-tab="signup" type="button">Criar conta</button></div><form class="mf-auth-form" id="mfAuthForm"><div id="mfNameWrap" class="mf-hidden"><label for="mfName">Nome</label><input id="mfName" autocomplete="name" maxlength="120"></div><div><label for="mfEmail">E-mail</label><input id="mfEmail" type="email" autocomplete="email" required></div><div><label for="mfPassword">Senha</label><input id="mfPassword" type="password" autocomplete="current-password" minlength="8" required></div><button type="submit" id="mfAuthSubmit">Entrar</button><div id="mfLicenseStatus" class="mf-status">Entre ou crie sua conta. Depois você poderá solicitar a licença pelo WhatsApp.</div></form>`;
-      let mode='signin';body.querySelectorAll('.mf-tab').forEach(tab=>tab.addEventListener('click',()=>{mode=tab.dataset.tab;body.querySelectorAll('.mf-tab').forEach(t=>t.classList.toggle('active',t===tab));body.querySelector('#mfNameWrap').classList.toggle('mf-hidden',mode!=='signup');body.querySelector('#mfPassword').autocomplete=mode==='signup'?'new-password':'current-password';body.querySelector('#mfAuthSubmit').textContent=mode==='signup'?'Criar conta':'Entrar';}));
+      let mode='signin';body.querySelectorAll('.mf-tab').forEach(tab=>tab.addEventListener('click',()=>{mode=tab.dataset.tab;body.querySelectorAll('.mf-tab').forEach(t=>t.classList.toggle('active',t===tab));body.querySelector('#mfNameWrap').classList.toggle('mf-hidden',mode!=='signup');body.querySelector('#mfPassword').autocomplete=mode==='signup'?'new-password':'current-password';body.querySelector('#mfAuthSubmit').textContent=mode==='signup'?'Criar conta':'Entrar';if(mode==='signup')body.querySelector('#mfName')?.focus();else body.querySelector('#mfEmail')?.focus();}));
       body.querySelector('#mfAuthForm').addEventListener('submit',async e=>{e.preventDefault();const email=body.querySelector('#mfEmail').value.trim();const password=body.querySelector('#mfPassword').value;const name=body.querySelector('#mfName')?.value.trim()||email.split('@')[0];setStatus(mode==='signup'?'Criando conta…':'Entrando…');try{const client=await loadClient();const result=mode==='signup'?await client.auth.signUp.email({email,password,name}):await client.auth.signIn.email({email,password});if(result?.error)throw new Error(result.error.message||'Falha na autenticação.');await refreshSession();await refreshAccess();if(!state.user)throw new Error('Autenticação concluída, mas a sessão não foi criada.');renderModal();}catch(err){setStatus(err?.message||'Falha na autenticação.','bad');}});return;
     }
 
     const email=state.user.email||'Conta autenticada';const userId=String(state.user.id||'');const isPro=state.plan==='pro'&&['active','grace'].includes(state.licenseStatus||'');
     const valid=state.validUntil?new Date(state.validUntil).toLocaleString('pt-BR'):'Sem data de expiração';
     const buyButton=isPro?'':`<a class="mf-buy" id="mfBuyLicense" href="${escapeHtml(whatsappUrl(email,userId))}" target="_blank" rel="noopener noreferrer">💬 Adquirir licença pelo WhatsApp</a><div class="mf-note">Contato: ${escapeHtml(CONFIG.whatsappDisplay)}. A mensagem já leva seu e-mail e ID de conta para facilitar a ativação.</div>`;
-    body.innerHTML=`<div class="mf-account-box"><div class="mf-status ${isPro?'good':'warn'}"><strong>${escapeHtml(email)}</strong><br>${isPro?'Licença Pro ativa':'Nenhuma licença Premium ativa'}</div><div class="mf-plan-card"><strong>${isPro?'MapaFlex Pro':'MapaFlex Pro'}</strong><small>${isPro?'IA premium e exportação avançada liberadas.':'Para adquirir o Premium, fale diretamente pelo WhatsApp. Depois da confirmação da compra, a licença é ativada no gerenciador administrativo seguro.'}</small>${isPro?`<div class="mf-note" style="margin-top:8px">Validade: ${escapeHtml(valid)}</div>`:''}</div>${buyButton}<div class="mf-note">ID da conta para gerenciamento de licença:</div><div class="mf-code" id="mfUserId">${escapeHtml(userId)}</div><div class="mf-row"><button class="mf-copy" id="mfCopyUserId" type="button">Copiar ID</button><button class="mf-refresh" id="mfRefreshAccess" type="button">Atualizar licença</button></div><button class="mf-signout" id="mfSignOut" type="button">Sair da conta</button><div id="mfLicenseStatus" class="mf-status">${isPro?'Licença validada pelo servidor.':'Após a ativação, clique em “Atualizar licença”.'}</div><div class="mf-note">Segurança: nunca envie sua senha pelo WhatsApp. Para ativar a licença, bastam o e-mail e o ID de conta mostrados acima.</div></div>`;
+    body.innerHTML=`<div class="mf-account-box"><div class="mf-status ${isPro?'good':'warn'}"><strong>${escapeHtml(email)}</strong><br>${isPro?'Licença Pro ativa':'Nenhuma licença Premium ativa'}</div><div class="mf-plan-card"><strong>Nexus Mapas Pro</strong><small>${isPro?'IA premium e exportação avançada liberadas.':'Para adquirir o Premium, fale diretamente pelo WhatsApp. Depois da confirmação da compra, ative o código recebido nesta conta.'}</small>${isPro?`<div class="mf-note" style="margin-top:8px">Validade: ${escapeHtml(valid)}</div>`:''}</div>${buyButton}<div class="mf-note">ID da conta para gerenciamento de licença:</div><div class="mf-code" id="mfUserId">${escapeHtml(userId)}</div><div class="mf-row"><button class="mf-copy" id="mfCopyUserId" type="button">Copiar ID</button><button class="mf-refresh" id="mfRefreshAccess" type="button">Atualizar licença</button></div><button class="mf-signout" id="mfSignOut" type="button">Sair da conta</button><div id="mfLicenseStatus" class="mf-status">${isPro?'Licença validada pelo servidor.':'Após a ativação, clique em “Atualizar licença”.'}</div><div class="mf-note">Segurança: nunca envie sua senha pelo WhatsApp. O código de licença é validado no servidor e fica vinculado à sua conta.</div></div>`;
     body.querySelector('#mfCopyUserId')?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(userId);setStatus('ID da conta copiado.','good');}catch{setStatus('Não foi possível copiar automaticamente.','warn');}});
-    body.querySelector('#mfRefreshAccess')?.addEventListener('click',async()=>{setStatus('Atualizando…');await refreshSession();await refreshAccess();setStatus(hasEntitlement('premium_ai')?'Licença Pro ativa.':'Nenhuma licença Premium ativa.',hasEntitlement('premium_ai')?'good':'warn');});
-    body.querySelector('#mfSignOut')?.addEventListener('click',async()=>{try{await state.client.auth.signOut();}catch{}state.user=null;state.plan='free';state.licenseStatus=null;state.validUntil=null;state.entitlements=Object.create(null);updateUi();renderModal();});
+    body.querySelector('#mfRefreshAccess')?.addEventListener('click',async()=>{setStatus('Atualizando…');try{await refreshSession();await refreshAccess();setStatus(hasEntitlement('premium_ai')?'Licença Pro ativa.':'Nenhuma licença Premium ativa.',hasEntitlement('premium_ai')?'good':'warn');}catch(err){setStatus(err?.message||'Falha ao atualizar licença.','bad');}});
+    body.querySelector('#mfSignOut')?.addEventListener('click',async()=>{try{await state.client?.auth?.signOut?.();}catch{}state.user=null;state.plan='free';state.licenseStatus=null;state.validUntil=null;state.entitlements=Object.create(null);updateUi();renderModal();});
   }
 
-  function showPremiumRequired(feature){openModal();setTimeout(()=>setStatus(feature==='premium_ai'?'Este recurso requer uma licença com IA Premium. Use o botão do WhatsApp para adquirir.':'Este recurso requer uma licença com exportação avançada. Use o botão do WhatsApp para adquirir.','warn'),0);}
+  function showPremiumRequired(feature){openModal();setTimeout(()=>setStatus(feature==='premium_ai'?'Este recurso requer uma licença com IA Premium ativa.':'Este recurso requer uma licença com exportação avançada.','warn'),0);}
 
   document.addEventListener('click',e=>{const el=e.target instanceof Element?e.target.closest('button,[role="button"]'):null;if(!el)return;const feature=premiumByButton[el.id];if(feature&&!hasEntitlement(feature)){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation?.();showPremiumRequired(feature);}},true);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal()?.classList.contains('open')){e.preventDefault();closeModal();}},true);
 
-  async function init(){injectUi();try{await loadClient();await refreshSession();await refreshAccess();}catch(err){console.warn('[MapaFlex License] inicialização:',err?.message||err);}finally{state.ready=true;updateUi();}}
+  async function init(){injectUi();try{await loadClient();await refreshSession();await refreshAccess();}catch(err){console.warn('[Nexus Mapas] inicialização de conta:',err?.message||err);}finally{state.ready=true;updateUi();}}
 
-  window.MapaFlexBilling={
+  const api={
     get user(){return state.user;},
     get plan(){return state.plan;},
     get licenseStatus(){return state.licenseStatus;},
     hasEntitlement,
+    getAccessToken,
     refresh:async()=>{await refreshSession();await refreshAccess();return {user:state.user,plan:state.plan,licenseStatus:state.licenseStatus,entitlements:{...state.entitlements}};},
-    open:openModal
+    open:openModal,
+    close:closeModal
   };
+  window.MapaFlexBilling=api;
+  window.NexusMapasBilling=api;
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
