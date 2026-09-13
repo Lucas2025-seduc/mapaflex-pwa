@@ -7,6 +7,7 @@
   const DATA_URL='https://ep-square-paper-aceqdgpa.apirest.sa-east-1.aws.neon.tech/neondb/rest/v1';
   const SDK_URL='https://esm.sh/@neondatabase/neon-js@0.7.0-beta?bundle';
   let scheduled=false;
+  let enhancing=false;
   let redeemClient=null;
 
   function loadMobileUx(){
@@ -91,7 +92,7 @@
     const panel=document.createElement('div');
     panel.id='mfRedeemLicenseSales';
     panel.className='mf-redeem';
-    panel.innerHTML='<div class="mf-redeem-title">Já tem um código? Ative aqui</div><div class="mf-redeem-row"><input id="mfLicenseCodeInput" class="mf-redeem-input" autocomplete="off" spellcheck="false" maxlength="64" placeholder="MF-XXXX-XXXX-…"><button id="mfRedeemLicenseBtn" class="mf-redeem-btn" type="button">Ativar código</button></div><div id="mfRedeemLicenseStatus" class="mf-redeem-status">O código é de uso único e fica vinculado à sua conta depois da ativação.</div>';
+    panel.innerHTML='<div class="mf-redeem-title">Já tem um código? Ative aqui</div><div class="mf-redeem-row"><input id="mfLicenseCodeInput" class="mf-redeem-input" autocomplete="off" spellcheck="false" maxlength="64" placeholder="NX-XXXX-XXXX-…"><button id="mfRedeemLicenseBtn" class="mf-redeem-btn" type="button">Ativar código</button></div><div id="mfRedeemLicenseStatus" class="mf-redeem-status">O código é de uso único e fica vinculado à sua conta depois da ativação.</div>';
     const input=panel.querySelector('#mfLicenseCodeInput');
     const btn=panel.querySelector('#mfRedeemLicenseBtn');
     const statusEl=panel.querySelector('#mfRedeemLicenseStatus');
@@ -101,65 +102,84 @@
   }
 
   function enhanceLicenseModal(){
+    if(enhancing){scheduled=false;return;}
     scheduled=false;
-    installStyle();
-    hardenAiUi();
+    enhancing=true;
+    try{
+      installStyle();
+      hardenAiUi();
 
-    const root=document.getElementById('mfLicenseBody');
-    const billing=window.MapaFlexBilling;
-    if(!root||!billing) return;
+      const root=document.getElementById('mfLicenseBody');
+      const billing=window.MapaFlexBilling;
+      if(!root||!billing) return;
 
-    const user=billing.user;
-    const active=billing.plan==='pro'&&['active','grace'].includes(String(billing.licenseStatus||''));
-    const standalone=root.querySelector('#mfBuyLicenseSales');
-    const redeemPanel=root.querySelector('#mfRedeemLicenseSales');
+      const user=billing.user;
+      const active=billing.plan==='pro'&&['active','grace'].includes(String(billing.licenseStatus||''));
+      const standalone=root.querySelector('#mfBuyLicenseSales');
+      const redeemPanel=root.querySelector('#mfRedeemLicenseSales');
 
-    if(active){standalone?.remove();redeemPanel?.remove();return;}
+      const title=document.getElementById('mfLicenseTitle');
+      if(title && title.textContent!=='Conta e licença Nexus Mapas') title.textContent='Conta e licença Nexus Mapas';
 
-    const builtInBuy=root.querySelector('#mfBuyLicense');
-    if(builtInBuy){
-      standalone?.remove();
-      const planText=root.querySelector('.mf-plan-card small');
-      if(user&&planText) planText.textContent='Após a compra, você receberá um código de licença de uso único. Digite-o abaixo para ativar o Premium nesta conta.';
-      if(user&&!redeemPanel){
-        const panel=createRedeemPanel();
-        const note=builtInBuy.nextElementSibling;
-        if(note) note.insertAdjacentElement('afterend',panel); else builtInBuy.insertAdjacentElement('afterend',panel);
+      if(active){standalone?.remove();redeemPanel?.remove();return;}
+
+      const builtInBuy=root.querySelector('#mfBuyLicense');
+      if(builtInBuy){
+        standalone?.remove();
+        const planText=root.querySelector('.mf-plan-card small');
+        const desired='Após a compra, você receberá um código de licença de uso único. Digite-o abaixo para ativar o Premium nesta conta.';
+        if(user&&planText&&planText.textContent!==desired) planText.textContent=desired;
+        const planStrong=root.querySelector('.mf-plan-card strong');
+        if(planStrong&&planStrong.textContent!=='Nexus Mapas Pro') planStrong.textContent='Nexus Mapas Pro';
+        if(user&&!redeemPanel){
+          const panel=createRedeemPanel();
+          const note=builtInBuy.nextElementSibling;
+          if(note) note.insertAdjacentElement('afterend',panel); else builtInBuy.insertAdjacentElement('afterend',panel);
+        }
+        return;
       }
-      return;
+
+      if(standalone) return;
+
+      const userId=String(user?.id||'');
+      const email=String(user?.email||'');
+      const text=[
+        'Olá! Quero adquirir uma licença Nexus Mapas Pro.',
+        email?`E-mail da conta: ${email}`:'Ainda não entrei na minha conta.',
+        userId?`ID da conta: ${userId}`:'',
+        'Pode me informar as condições de pagamento e ativação?'
+      ].filter(Boolean).join('\n');
+
+      const box=document.createElement('div');
+      box.id='mfBuyLicenseSales';
+      box.className='mf-buy-box';
+      box.innerHTML=`<div class="mf-buy-title">Adquirir licença Nexus Mapas Pro</div><div class="mf-buy-text">${user?'Após confirmar a compra, você receberá um código de licença de uso único para vincular o Premium à sua conta.':'Fale com o responsável pelo WhatsApp. Para ativar a licença depois, crie ou entre em uma conta no Nexus Mapas.'}</div><a class="mf-buy-whatsapp" target="_blank" rel="noopener noreferrer" href="https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}">💬 Comprar pelo WhatsApp</a><div class="mf-buy-contact">Contato oficial: ${esc(WHATSAPP_LABEL)}</div>`;
+
+      if(user) box.appendChild(createRedeemPanel());
+
+      const accountBox=root.querySelector('.mf-account-box');
+      const signOut=root.querySelector('#mfSignOut');
+      const authForm=root.querySelector('#mfAuthForm');
+      if(accountBox){if(signOut) accountBox.insertBefore(box,signOut); else accountBox.appendChild(box);}else if(authForm){authForm.insertAdjacentElement('afterend',box);}else{root.appendChild(box);}
+    } finally {
+      enhancing=false;
     }
-
-    if(standalone) return;
-
-    const userId=String(user?.id||'');
-    const email=String(user?.email||'');
-    const text=[
-      'Olá! Quero adquirir uma licença MapaFlex Pro.',
-      email?`E-mail da conta: ${email}`:'Ainda não entrei na minha conta.',
-      userId?`ID da conta: ${userId}`:'',
-      'Pode me informar as condições de pagamento e ativação?'
-    ].filter(Boolean).join('\n');
-
-    const box=document.createElement('div');
-    box.id='mfBuyLicenseSales';
-    box.className='mf-buy-box';
-    box.innerHTML=`<div class="mf-buy-title">Adquirir licença MapaFlex Pro</div><div class="mf-buy-text">${user?'Após confirmar a compra, você receberá um código de licença de uso único para vincular o Premium à sua conta.':'Fale com o responsável pelo WhatsApp. Para ativar a licença depois, crie ou entre em uma conta no MapaFlex.'}</div><a class="mf-buy-whatsapp" target="_blank" rel="noopener noreferrer" href="https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}">💬 Comprar pelo WhatsApp</a><div class="mf-buy-contact">Contato oficial: ${esc(WHATSAPP_LABEL)}</div>`;
-
-    if(user) box.appendChild(createRedeemPanel());
-
-    const accountBox=root.querySelector('.mf-account-box');
-    const signOut=root.querySelector('#mfSignOut');
-    const authForm=root.querySelector('#mfAuthForm');
-    if(accountBox){if(signOut) accountBox.insertBefore(box,signOut); else accountBox.appendChild(box);}else if(authForm){authForm.insertAdjacentElement('afterend',box);}else{root.appendChild(box);}
   }
 
-  function scheduleEnhance(){if(scheduled)return;scheduled=true;queueMicrotask(enhanceLicenseModal);}
+  function scheduleEnhance(){
+    if(scheduled||enhancing)return;
+    scheduled=true;
+    setTimeout(enhanceLicenseModal,0);
+  }
 
   const start=()=>{
     loadMobileUx();
     hardenAiUi();
     const modal=document.getElementById('mfLicenseModal');
-    if(modal){const observer=new MutationObserver(scheduleEnhance);observer.observe(modal,{childList:true,subtree:true});}
+    if(modal){
+      const observer=new MutationObserver(scheduleEnhance);
+      observer.observe(modal,{childList:true,subtree:true});
+    }
     const aiStatus=document.getElementById('aiStatus');
     if(aiStatus){const aiObserver=new MutationObserver(hardenAiUi);aiObserver.observe(aiStatus,{childList:true,subtree:true,characterData:true});}
     scheduleEnhance();
