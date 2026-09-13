@@ -5,28 +5,76 @@ const headers = {
   'Referrer-Policy': 'no-referrer'
 };
 
+const DEFAULT_DATA_API_URL = 'https://ep-square-paper-aceqdgpa.apirest.sa-east-1.aws.neon.tech/neondb/rest/v1';
+const MAX_BODY_BYTES = 256 * 1024;
+
 export async function onRequest(context) {
-  const { request } = context;
+  const { request, env = {} } = context;
   const reply = (status, body) => new Response(JSON.stringify(body), { status, headers });
 
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
   if (request.method !== 'POST') return reply(405, { error: 'Método não permitido.' });
 
+  const requestUrl = new URL(request.url);
+  const browserOrigin = request.headers.get('Origin');
+  if (browserOrigin && browserOrigin !== requestUrl.origin) {
+    return reply(403, { error: 'Origem não autorizada.' });
+  }
+
+  const authHeader = String(request.headers.get('Authorization') || '');
+  const match = /^Bearer\s+(.+)$/i.exec(authHeader);
+  const userToken = match?.[1]?.trim() || '';
+  if (!userToken || userToken.length > 12000) {
+    return reply(401, { error: 'Entre na sua conta para usar a IA Premium.' });
+  }
+
+  const declaredLength = Number(request.headers.get('Content-Length') || 0);
+  if (declaredLength > MAX_BODY_BYTES) {
+    return reply(413, { error: 'Solicitação muito grande.' });
+  }
+
   try {
+    const dataApiUrl = String(env.NEON_DATA_API_URL || DEFAULT_DATA_API_URL).replace(/\/$/, '');
+    const entitlementUrl = `${dataApiUrl}/my_access?select=feature_key,enabled&feature_key=eq.premium_ai&enabled=eq.true&limit=1`;
+    const entitlementResponse = await fetch(entitlementUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${userToken}`,
+        'Accept': 'application/json',
+        'Accept-Profile': 'mapaflex'
+      }
+    });
+
+    if (entitlementResponse.status === 401 || entitlementResponse.status === 403) {
+      return reply(401, { error: 'Sessão inválida ou expirada. Entre novamente.' });
+    }
+    if (!entitlementResponse.ok) {
+      return reply(503, { error: 'Não foi possível validar a licença neste momento.' });
+    }
+
+    let accessRows = [];
+    try { accessRows = await entitlementResponse.json(); } catch {}
+    if (!Array.isArray(accessRows) || !accessRows.some(row => row?.feature_key === 'premium_ai' && row?.enabled === true)) {
+      return reply(403, { error: 'Este recurso requer uma licença Nexus Mapas Pro com IA Premium.' });
+    }
+
+    const rawBody = await request.text();
+    if (new TextEncoder().encode(rawBody).byteLength > MAX_BODY_BYTES) {
+      return reply(413, { error: 'Solicitação muito grande.' });
+    }
+
     let payload;
-    try { payload = await request.json(); }
+    try { payload = JSON.parse(rawBody); }
     catch { return reply(400, { error: 'JSON inválido.' }); }
 
     const { provider, key, model, action, system, user, json, maxTokens } = payload || {};
     if (!['openai', 'gemini'].includes(provider)) return reply(400, { error: 'Provedor inválido.' });
     if (!['models', 'chat'].includes(action)) return reply(400, { error: 'Ação inválida.' });
 
-    // Segurança: o Worker não usa chaves de IA compartilhadas do servidor.
-    // Cada usuário fornece sua própria chave, mantida apenas na sessão do navegador.
+    // A chave pertence ao próprio usuário e só é usada nesta requisição.
+    // O Worker não possui nem usa uma chave compartilhada de IA.
     const effectiveKey = typeof key === 'string' ? key.trim() : '';
-    if (!effectiveKey) {
-      return reply(403, { error: 'Informe sua própria chave da API no MapaFlex. O uso de chave compartilhada do servidor está desativado por segurança.' });
-    }
+    if (!effectiveKey) return reply(403, { error: 'Informe sua própria chave da API no Nexus Mapas.' });
     if (effectiveKey.length > 5000) return reply(400, { error: 'Chave de API inválida.' });
 
     const outputLimit = Math.max(32, Math.min(32768, Number(maxTokens) || 7000));
@@ -83,7 +131,7 @@ export async function onRequest(context) {
     }
 
     const chosen = String(model || '').trim();
-    if (!chosen) return reply(400, { error: 'Modelo ausente.' });
+    if (!chosen || chosen.length > 200) return reply(400, { error: 'Modelo ausente ou inválido.' });
 
     try {
       const body = await providerFetch(`${base}/responses`, {
