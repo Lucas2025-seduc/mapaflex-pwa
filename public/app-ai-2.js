@@ -1,8 +1,9 @@
   async function callAi(prompt,expectJson=false,maxTokens=7000){
-    const {provider,key,model,serverKey}=aiConfig();
-    if((!key&&!serverKey)||!model) throw new Error(serverKey?'Informe o modelo.':'Informe a chave da API e o modelo, ou use a chave do servidor.');
+    const {provider,key,model}=aiConfig();
+    if(!key||!model) throw new Error('Informe sua chave da API e o modelo.');
     saveAiSessionConfig();
-    const data=await fetchJsonOrThrow('/api/ai-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider,key:serverKey?'':key,model,action:'chat',system:aiSystemPrompt(expectJson),user:prompt,json:expectJson,maxTokens})});
+    const headers=await aiProxyHeaders();
+    const data=await fetchJsonOrThrow('/api/ai-proxy',{method:'POST',headers,body:JSON.stringify({provider,key,model,action:'chat',system:aiSystemPrompt(expectJson),user:prompt,json:expectJson,maxTokens})});
     return String(data?.content||'');
   }
   function parseAiJson(text){
