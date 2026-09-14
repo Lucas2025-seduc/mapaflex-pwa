@@ -1,7 +1,7 @@
 (()=>{
   'use strict';
-  if(window.__NexusInstallButtonFixV3) return;
-  window.__NexusInstallButtonFixV3=true;
+  if(window.__NexusInstallButtonFixV4) return;
+  window.__NexusInstallButtonFixV4=true;
 
   let installPrompt=null;
   let fitTimer=null;
@@ -9,29 +9,29 @@
   const standalone=()=>matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
 
   const style=document.createElement('style');
-  style.id='nexus-install-button-fix-v3-style';
+  style.id='nexus-install-button-fix-v4-style';
   style.textContent=`
     #installApp.nx-install-fixed{display:inline-flex!important;align-items:center;justify-content:center;gap:5px;white-space:nowrap;flex:0 0 auto!important}
     @media(max-width:760px){
-      .topbar{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;grid-template-areas:'brand install account' 'title title title'!important;gap:6px 7px!important;align-items:center!important;overflow:visible!important;padding:8px!important;min-height:104px!important}
-      .topbar>.brand{grid-area:brand!important;min-width:0!important;max-width:none!important;overflow:visible!important;font-size:16px!important;white-space:nowrap!important}
-      .topbar>.titleInput{grid-area:title!important;width:100%!important;min-width:0!important;max-width:none!important;height:42px!important;margin:0!important;font-size:15px!important}
-      .topbar>#installApp{grid-area:install!important;display:inline-flex!important;min-width:48px!important;min-height:46px!important;padding:8px 10px!important;margin:0!important;font-size:13px!important;border-radius:10px!important}
-      .topbar>#mfAccountBtn{grid-area:account!important;display:inline-flex!important;min-width:0!important;max-width:132px!important;min-height:46px!important;padding:8px 10px!important;margin:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:13px!important}
+      .topbar{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;grid-template-areas:'brand install account' 'title title title'!important;gap:6px 7px!important;align-items:center!important;overflow:visible!important;padding:7px 8px!important;min-height:112px!important}
+      .topbar>.brand{grid-area:brand!important;min-width:0!important;max-width:none!important;overflow:visible!important;font-size:15px!important;white-space:nowrap!important;margin:0!important}
+      .topbar>.titleInput{grid-area:title!important;width:100%!important;min-width:0!important;max-width:none!important;height:40px!important;margin:0!important;font-size:15px!important;padding:7px 11px!important;border-radius:11px!important;box-sizing:border-box!important}
+      .topbar>#installApp{grid-area:install!important;display:inline-flex!important;min-width:46px!important;height:44px!important;min-height:44px!important;padding:7px 9px!important;margin:0!important;font-size:12px!important;border-radius:10px!important;background:#eff6ff!important;color:#075fc9!important;border-color:#bfdbfe!important;font-weight:850!important}
+      .topbar>#mfAccountBtn{grid-area:account!important;display:inline-flex!important;min-width:94px!important;max-width:112px!important;height:44px!important;min-height:44px!important;padding:7px 9px!important;margin:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:12px!important;justify-content:center!important}
       .topbar>.toolbar,.topbar>.spacer,.topbar>#undo,.topbar>#redo,.topbar>#saveJson,.topbar>#loadJson,.topbar>#print{display:none!important}
-      .sidebar,.inspector{top:104px!important}
-      .mf-mobile-backdrop{inset:104px 0 82px!important}
-      .nx-side-toggle{width:30px!important;height:52px!important;opacity:.70!important;background:rgba(255,255,255,.88)!important;box-shadow:0 6px 18px rgba(15,39,71,.13)!important}
-      .nx-side-toggle:hover,.nx-side-toggle:focus-visible{opacity:1!important}
+      .sidebar,.inspector{top:112px!important}
+      .mf-mobile-backdrop{inset:112px 0 82px!important}
+      .nx-side-toggle{width:24px!important;height:46px!important;opacity:.78!important;background:rgba(255,255,255,.90)!important;box-shadow:0 6px 18px rgba(15,39,71,.13)!important;top:48%!important}
+      .nx-side-toggle:hover,.nx-side-toggle:focus-visible,.nx-side-toggle:active{opacity:1!important}
       .overlay{padding:4px!important;gap:4px!important}
       .overlay .btn{min-width:48px!important;min-height:48px!important}
     }
-    @media(max-width:430px){
-      .topbar{grid-template-columns:minmax(0,1fr) 48px minmax(92px,118px)!important}
-      .topbar>#installApp{font-size:0!important;width:48px!important;min-width:48px!important;padding:0!important}
-      .topbar>#installApp::after{content:'⬇';font-size:20px!important;line-height:1}
-      .topbar>#mfAccountBtn{font-size:12px!important;padding:7px 8px!important}
-      .topbar>.brand{font-size:15px!important}
+    @media(max-width:380px){
+      .topbar{grid-template-columns:minmax(0,1fr) 44px minmax(88px,96px)!important}
+      .topbar>#installApp{font-size:0!important;width:44px!important;min-width:44px!important;padding:0!important}
+      .topbar>#installApp::after{content:'⬇';font-size:18px!important;line-height:1}
+      .topbar>#mfAccountBtn{font-size:11.5px!important;padding:6px 7px!important}
+      .topbar>.brand{font-size:14px!important}
     }
   `;
   document.head.appendChild(style);
@@ -43,7 +43,7 @@
     btn.style.setProperty('display','inline-flex','important');
     btn.title='Baixar / instalar Nexus Mapas';
     btn.setAttribute('aria-label','Baixar ou instalar Nexus Mapas');
-    if(innerWidth>430) btn.innerHTML=standalone()?'✓ Instalado':'⬇ Baixar';
+    if(innerWidth>380) btn.innerHTML=standalone()?'✓ Instalado':'⬇ Baixar';
     else btn.textContent='';
   }
 
@@ -56,12 +56,12 @@
     const safeBottom=Math.max(c.top+80,c.bottom-96);
     return nodes.some(el=>{
       const r=el.getBoundingClientRect();
-      return r.left<c.left+14 || r.right>c.right-14 || r.top<c.top+14 || r.bottom>safeBottom;
+      return r.left<c.left+16 || r.right>c.right-16 || r.top<c.top+16 || r.bottom>safeBottom;
     });
   }
 
   function fitIfNeeded(force=false){
-    if(innerWidth>760) return;
+    if(innerWidth>760 || document.body.classList.contains('presenting')) return;
     if(!force&&!nodeIsOutsideCanvas()) return;
     try{
       if(typeof fit==='function') fit();
