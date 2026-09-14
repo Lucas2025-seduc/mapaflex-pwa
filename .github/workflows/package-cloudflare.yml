@@ -1,6 +1,9 @@
 name: Gerar pacote Cloudflare
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     paths:
       - '.github/workflows/package-cloudflare.yml'
@@ -40,7 +43,7 @@ jobs:
           NEXUS MAPAS - PACOTE EDITAVEL PARA CLOUDFLARE
           =============================================
 
-          Este pacote foi gerado a partir da branch main do projeto Nexus Mapas.
+          Este pacote foi gerado a partir da versao atual do Nexus Mapas.
 
           O QUE EDITAR
           ------------
