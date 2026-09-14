@@ -3,12 +3,13 @@
   if(window.__NexusMapasUI) return;
   window.__NexusMapasUI=true;
 
+  const LICENSE_PRICE='R$ 69,90';
   document.title='Nexus Mapas — Mapas mentais e conceituais';
   const desc=document.querySelector('meta[name="description"]');
   if(desc) desc.content='Nexus Mapas — editor visual de mapas mentais e conceituais com IA, multimídia, apresentação e exportação.';
 
   const style=document.createElement('style');
-  style.id='nexus-mapas-ui-v16';
+  style.id='nexus-mapas-ui-v19';
   style.textContent=`
     :root{
       --accent:#0f6fea!important;--accent2:#3b82f6!important;--bg:#eef4fb!important;--panel:#fff!important;
@@ -36,8 +37,20 @@
     .mf-drawer-head{background:#fff!important}.mf-drawer-title{color:#17365d!important;font-size:15px!important}
     .presentationPanel{border-radius:16px!important;border-color:#d6e3f0!important;box-shadow:0 18px 42px rgba(10,42,82,.18)!important;background:#fff!important}
     .mf-license-card,.mediaCard,.aiCard,.imageModalCard{border:1px solid #dbe6f2!important;box-shadow:0 22px 60px rgba(15,39,71,.24)!important}
+    .nx-license-price{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0;padding:12px 14px;border:1px solid #bbd8fb;border-radius:12px;background:linear-gradient(135deg,#eff6ff,#f8fbff);color:#17365d}.nx-license-price span{font-size:12px;font-weight:750}.nx-license-price strong{font-size:22px;white-space:nowrap;color:#075fc9}.nx-license-price small{display:block;margin-top:2px;color:#64748b;font-weight:600}
     @media(max-width:1100px){.main{display:grid!important;grid-template-columns:1fr!important;padding:7px!important;gap:0!important}.canvasWrap{border-radius:14px!important}.sidebar,.inspector{border-radius:0 16px 16px 0!important;margin:0!important}.inspector{border-radius:16px 0 0 16px!important}.nexus-panel-title{display:none!important}}
-    @media(max-width:760px){.topbar{min-height:66px!important;padding:7px 8px!important;gap:6px!important}.nexus-mark{width:32px;height:32px;border-radius:10px;font-size:17px}.nexus-name{font-size:15px!important}.nexus-tagline{display:none}.titleInput{height:48px!important}.main{padding:4px!important}.canvasWrap{border-radius:12px!important}.mf-dock{height:76px!important;left:5px!important;right:5px!important;width:auto!important;transform:none!important;bottom:calc(5px + env(safe-area-inset-bottom,0px))!important}.mf-dock button{min-height:62px!important;font-size:11px!important}.mf-dock-icon{font-size:23px!important}.overlay,.status{bottom:88px!important}.mf-license-backdrop{padding:0!important;align-items:flex-end!important}.mf-license-card{width:100%!important;max-width:none!important;max-height:calc(100dvh - env(safe-area-inset-top,0px))!important;border-radius:20px 20px 0 0!important}}
+    @media(max-width:760px){
+      .topbar{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;grid-template-areas:'brand install account' 'title title title'!important;min-height:112px!important;padding:7px 8px!important;gap:6px 7px!important;align-items:center!important;overflow:visible!important}
+      .topbar .brand{grid-area:brand!important;margin:0!important;min-width:0!important}.nexus-mark{width:32px;height:32px;border-radius:10px;font-size:17px;flex:0 0 auto}.nexus-name{font-size:15px!important;white-space:nowrap}.nexus-tagline{display:none}
+      .topbar .titleInput{grid-area:title!important;display:block!important;width:100%!important;min-width:0!important;height:40px!important;font-size:15px!important;padding:7px 11px!important;border-radius:11px!important;box-sizing:border-box!important}
+      .topbar>#installApp{grid-area:install!important;display:inline-flex!important;visibility:visible!important;opacity:1!important;min-width:46px!important;height:44px!important;align-items:center!important;justify-content:center!important;padding:7px 9px!important;font-size:12px!important;font-weight:850!important;white-space:nowrap!important;border-color:#bfdbfe!important;background:#eff6ff!important;color:#075fc9!important}
+      .topbar>#mfAccountBtn{grid-area:account!important;display:inline-flex!important;min-width:94px!important;max-width:112px!important;height:44px!important;align-items:center!important;justify-content:center!important;padding:7px 9px!important;font-size:12px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+      .topbar .toolbar,.topbar>.spacer,.topbar>#saveJson,.topbar>#loadJson,.topbar>#print,.topbar>#undo,.topbar>#redo{display:none!important}
+      .main{padding:4px!important}.canvasWrap{border-radius:12px!important}.mf-dock{height:76px!important;left:5px!important;right:5px!important;width:auto!important;transform:none!important;bottom:calc(5px + env(safe-area-inset-bottom,0px))!important}.mf-dock button{min-height:62px!important;font-size:11px!important}.mf-dock-icon{font-size:23px!important}.overlay,.status{bottom:88px!important}.mf-license-backdrop{padding:0!important;align-items:flex-end!important}.mf-license-card{width:100%!important;max-width:none!important;max-height:calc(100dvh - env(safe-area-inset-top,0px))!important;border-radius:20px 20px 0 0!important}
+      .sidebar,.inspector{top:112px!important}.mf-mobile-backdrop{inset:112px 0 82px!important}.nx-side-toggle{width:24px!important;height:46px!important;opacity:.78!important;top:48%!important}.nx-side-toggle:hover,.nx-side-toggle:active{opacity:1!important}
+      .nx-license-price{padding:10px 12px}.nx-license-price strong{font-size:20px}
+    }
+    @media(max-width:380px){.nexus-name{font-size:14px!important}.topbar>#mfAccountBtn{min-width:88px!important;max-width:96px!important}.topbar>#installApp{font-size:0!important;width:44px!important;min-width:44px!important}.topbar>#installApp::after{content:'⬇';font-size:18px}}
   `;
   document.head.appendChild(style);
 
@@ -57,7 +70,64 @@
       const h=document.createElement('div');h.className='nexus-panel-title';h.textContent='Propriedades';inspector.prepend(h);
     }
   }
-  function install(){installBrand();installPanelTitles();}
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install,{once:true}); else install();
-  setTimeout(install,250);
+
+  let installPrompt=null;
+  function isStandalone(){return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;}
+  function installDownloadButton(){
+    const btn=document.getElementById('installApp');if(!btn)return;
+    if(isStandalone()){btn.style.setProperty('display','none','important');return;}
+    btn.textContent='⬇ Baixar';
+    btn.title='Instalar Nexus Mapas neste dispositivo';
+    btn.style.setProperty('display','inline-flex','important');
+    if(btn.dataset.nxInstallBound==='1')return;
+    btn.dataset.nxInstallBound='1';
+    btn.addEventListener('click',async e=>{
+      e.preventDefault();e.stopImmediatePropagation();
+      if(installPrompt){
+        try{installPrompt.prompt();await installPrompt.userChoice;}catch{}
+        installPrompt=null;installDownloadButton();return;
+      }
+      const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+      if(ios) alert('Para baixar o Nexus Mapas: toque em Compartilhar e depois em “Adicionar à Tela de Início”.');
+      else alert('Para instalar o Nexus Mapas: abra o menu ⋮ do navegador e escolha “Instalar app” ou “Adicionar à tela inicial”.');
+    },true);
+  }
+  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;installDownloadButton();});
+  window.addEventListener('appinstalled',()=>{installPrompt=null;installDownloadButton();});
+
+  function addPriceToWhatsappLink(a){
+    if(!a?.href||!a.href.includes('wa.me/'))return;
+    try{
+      const u=new URL(a.href);const current=u.searchParams.get('text')||'';
+      if(!/R\$\s*69[,.]90/i.test(current))u.searchParams.set('text',(current+'\n\nValor da licença Nexus Mapas Pro: '+LICENSE_PRICE+'.').trim());
+      a.href=u.toString();
+    }catch{}
+    if(/comprar|adquirir/i.test(a.textContent||''))a.textContent='💬 Comprar Pro — '+LICENSE_PRICE;
+  }
+  function polishLicensePrice(){
+    const body=document.getElementById('mfLicenseBody');if(!body)return;
+    body.querySelectorAll('a[href*="wa.me/"]').forEach(addPriceToWhatsappLink);
+    const isPro=/Licença Pro ativa/i.test(body.textContent||'');
+    if(isPro){body.querySelector('.nx-license-price')?.remove();return;}
+    if(!body.querySelector('.nx-license-price')){
+      const box=document.createElement('div');box.className='nx-license-price';box.innerHTML='<span>Nexus Mapas Pro<small>Preço da licença</small></span><strong>'+LICENSE_PRICE+'</strong>';
+      const tabs=body.querySelector('.mf-tabs');
+      if(tabs)tabs.insertAdjacentElement('afterend',box);else body.prepend(box);
+    }
+  }
+
+  let fitTimer=0;
+  function fitMobileMap(){
+    if(innerWidth>760||document.body.classList.contains('presenting'))return;
+    clearTimeout(fitTimer);fitTimer=setTimeout(()=>{try{if(typeof fit==='function')fit();}catch{}},100);
+  }
+  function install(){installBrand();installPanelTitles();installDownloadButton();polishLicensePrice();}
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>{install();setTimeout(fitMobileMap,250);},{once:true}); else {install();setTimeout(fitMobileMap,250);}
+  setTimeout(()=>{install();fitMobileMap();},900);
+  setTimeout(fitMobileMap,1800);
+  window.addEventListener('resize',()=>{installDownloadButton();fitMobileMap();},{passive:true});
+  window.addEventListener('orientationchange',()=>setTimeout(fitMobileMap,250),{passive:true});
+  window.visualViewport?.addEventListener('resize',fitMobileMap,{passive:true});
+  const observer=new MutationObserver(()=>{installBrand();installPanelTitles();installDownloadButton();polishLicensePrice();});
+  observer.observe(document.documentElement,{childList:true,subtree:true});
 })();
