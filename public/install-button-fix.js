@@ -1,14 +1,15 @@
 (()=>{
   'use strict';
-  if(window.__NexusInstallButtonFixV2) return;
-  window.__NexusInstallButtonFixV2=true;
+  if(window.__NexusInstallButtonFixV3) return;
+  window.__NexusInstallButtonFixV3=true;
 
   let installPrompt=null;
+  let fitTimer=null;
   const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
   const standalone=()=>matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
 
   const style=document.createElement('style');
-  style.id='nexus-install-button-fix-v2-style';
+  style.id='nexus-install-button-fix-v3-style';
   style.textContent=`
     #installApp.nx-install-fixed{display:inline-flex!important;align-items:center;justify-content:center;gap:5px;white-space:nowrap;flex:0 0 auto!important}
     @media(max-width:760px){
@@ -16,8 +17,14 @@
       .topbar>.brand{grid-area:brand!important;min-width:0!important;max-width:none!important;overflow:visible!important;font-size:16px!important;white-space:nowrap!important}
       .topbar>.titleInput{grid-area:title!important;width:100%!important;min-width:0!important;max-width:none!important;height:42px!important;margin:0!important;font-size:15px!important}
       .topbar>#installApp{grid-area:install!important;display:inline-flex!important;min-width:48px!important;min-height:46px!important;padding:8px 10px!important;margin:0!important;font-size:13px!important;border-radius:10px!important}
-      .topbar>#mfAccountBtn{grid-area:account!important;display:inline-flex!important;min-width:0!important;max-width:128px!important;min-height:46px!important;padding:8px 10px!important;margin:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:13px!important}
+      .topbar>#mfAccountBtn{grid-area:account!important;display:inline-flex!important;min-width:0!important;max-width:132px!important;min-height:46px!important;padding:8px 10px!important;margin:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:13px!important}
       .topbar>.toolbar,.topbar>.spacer,.topbar>#undo,.topbar>#redo,.topbar>#saveJson,.topbar>#loadJson,.topbar>#print{display:none!important}
+      .sidebar,.inspector{top:104px!important}
+      .mf-mobile-backdrop{inset:104px 0 82px!important}
+      .nx-side-toggle{width:30px!important;height:52px!important;opacity:.70!important;background:rgba(255,255,255,.88)!important;box-shadow:0 6px 18px rgba(15,39,71,.13)!important}
+      .nx-side-toggle:hover,.nx-side-toggle:focus-visible{opacity:1!important}
+      .overlay{padding:4px!important;gap:4px!important}
+      .overlay .btn{min-width:48px!important;min-height:48px!important}
     }
     @media(max-width:430px){
       .topbar{grid-template-columns:minmax(0,1fr) 48px minmax(92px,118px)!important}
@@ -38,6 +45,33 @@
     btn.setAttribute('aria-label','Baixar ou instalar Nexus Mapas');
     if(innerWidth>430) btn.innerHTML=standalone()?'✓ Instalado':'⬇ Baixar';
     else btn.textContent='';
+  }
+
+  function nodeIsOutsideCanvas(){
+    if(innerWidth>760) return false;
+    const canvas=document.getElementById('canvasWrap');
+    const nodes=[...document.querySelectorAll('#nodes .node')];
+    if(!canvas||!nodes.length) return false;
+    const c=canvas.getBoundingClientRect();
+    const safeBottom=Math.max(c.top+80,c.bottom-96);
+    return nodes.some(el=>{
+      const r=el.getBoundingClientRect();
+      return r.left<c.left+14 || r.right>c.right-14 || r.top<c.top+14 || r.bottom>safeBottom;
+    });
+  }
+
+  function fitIfNeeded(force=false){
+    if(innerWidth>760) return;
+    if(!force&&!nodeIsOutsideCanvas()) return;
+    try{
+      if(typeof fit==='function') fit();
+      else document.getElementById('fit')?.click();
+    }catch(err){console.warn('Nexus Mapas: não foi possível reenquadrar o mapa.',err);}
+  }
+
+  function scheduleFit(force=false){
+    clearTimeout(fitTimer);
+    fitTimer=setTimeout(()=>fitIfNeeded(force),180);
   }
 
   window.addEventListener('beforeinstallprompt',e=>{
@@ -72,9 +106,18 @@
   },true);
 
   window.addEventListener('appinstalled',()=>{installPrompt=null;refresh();});
-  window.addEventListener('resize',refresh,{passive:true});
+  window.addEventListener('resize',()=>{refresh();scheduleFit(false);},{passive:true});
+  window.addEventListener('orientationchange',()=>{setTimeout(()=>scheduleFit(true),220);},{passive:true});
+  window.addEventListener('load',()=>{
+    refresh();
+    setTimeout(()=>fitIfNeeded(false),250);
+    setTimeout(()=>fitIfNeeded(false),800);
+    setTimeout(()=>fitIfNeeded(false),1600);
+  },{once:true});
+
   const observer=new MutationObserver(refresh);observer.observe(document.documentElement,{childList:true,subtree:true});
   refresh();
   setTimeout(refresh,100);
   setTimeout(refresh,500);
+  setTimeout(()=>fitIfNeeded(false),700);
 })();
