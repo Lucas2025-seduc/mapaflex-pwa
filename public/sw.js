@@ -1,4 +1,4 @@
-const CACHE = 'nexus-mapas-v21-mobile-install-20260913';
+const CACHE = 'nexus-mapas-v22-mobile-final-20260913';
 const CORE = [
   '/', '/index.html', '/404.html', '/styles.css',
   '/app-core-1.js', '/app-core-2.js', '/app-core-3.js',
