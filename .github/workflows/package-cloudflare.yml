@@ -1,0 +1,162 @@
+name: Gerar pacote Cloudflare
+
+on:
+  push:
+    paths:
+      - '.github/workflows/package-cloudflare.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+
+      - name: Montar pacote editavel do Nexus Mapas
+        shell: bash
+        run: |
+          set -e
+          ROOT="dist/Nexus-Mapas-Cloudflare"
+          mkdir -p "$ROOT/functions/api" "$ROOT/src"
+
+          # Aplicacao/PWA completa
+          cp -R public "$ROOT/public"
+
+          # Worker Cloudflare e endpoints realmente usados
+          cp src/index.js "$ROOT/src/index.js"
+          cp functions/api/ai-proxy.js "$ROOT/functions/api/ai-proxy.js"
+          cp functions/api/health.js "$ROOT/functions/api/health.js"
+
+          # Configuracao para deploy manual com Wrangler
+          cp package.json "$ROOT/package.json"
+          cp wrangler.jsonc "$ROOT/wrangler.jsonc"
+
+          # Documentacao do pacote
+          cat > "$ROOT/LEIA-ME-PRIMEIRO.txt" <<'EOF'
+          NEXUS MAPAS - PACOTE EDITAVEL PARA CLOUDFLARE
+          =============================================
+
+          Este pacote foi gerado a partir da branch main do projeto Nexus Mapas.
+
+          O QUE EDITAR
+          ------------
+          A maior parte do aplicativo esta na pasta public/.
+          Arquivos principais:
+          - public/index.html ........ estrutura da tela
+          - public/styles.css ........ estilos principais
+          - public/nexus-ui.js ....... identidade/layout Nexus
+          - public/mobile-ux.js ...... adaptacao celular/tablet
+          - public/nexus-map-features.js ... recursos de mapas
+          - public/nexus-editor-v17.js ..... editor e interacoes adicionais
+          - public/presentation-ux.js ...... apresentacao
+          - public/app-billing.js .......... conta/login/licenca
+          - public/app-license-sales.js .... ativacao/venda de licenca
+          - public/license-manager.html .... gerenciador de licencas
+          - public/sw.js ................... cache/PWA
+
+          BANCO DE DADOS E LICENCAS
+          -------------------------
+          O banco Neon NAO fica dentro desta pasta. Contas, licencas e dados do servidor
+          continuam no Neon. Fazer novo deploy do codigo nao apaga o banco.
+          Nao coloque senhas, DATABASE_URL, tokens administrativos ou segredos dentro
+          dos arquivos publicos.
+
+          DEPLOY COMPLETO
+          ---------------
+          O Nexus Mapas usa Cloudflare Worker + Static Assets. Para manter /api/ai-proxy
+          e /api/health funcionando, publique o projeto completo com Wrangler; nao envie
+          somente a pasta public como um site estatico.
+
+          No Windows, depois de instalar o Node.js, voce pode usar DEPLOY-CLOUDFLARE.bat.
+          Na primeira vez o Wrangler pedira login/autorizacao da sua conta Cloudflare.
+
+          Comandos equivalentes:
+            npm install
+            npx wrangler login
+            npm run deploy
+
+          TESTE LOCAL
+          -----------
+            npm install
+            npm run dev
+
+          IMPORTANTE
+          ----------
+          Antes de publicar, mantenha uma copia deste ZIP. Assim voce pode editar a pasta,
+          testar e fazer o deploy sem depender de editar arquivos diretamente no GitHub.
+          EOF
+
+          cat > "$ROOT/DEPLOY-CLOUDFLARE.bat" <<'EOF'
+          @echo off
+          setlocal
+          cd /d "%~dp0"
+          echo ==============================================
+          echo Nexus Mapas - Deploy manual no Cloudflare
+          echo ==============================================
+          where node >nul 2>nul
+          if errorlevel 1 (
+            echo ERRO: Node.js nao foi encontrado.
+            echo Instale o Node.js LTS e execute este arquivo novamente.
+            pause
+            exit /b 1
+          )
+          if not exist node_modules (
+            echo Instalando dependencias...
+            call npm install
+            if errorlevel 1 goto :erro
+          )
+          echo.
+          echo Iniciando deploy...
+          call npx wrangler deploy
+          if errorlevel 1 goto :erro
+          echo.
+          echo Deploy concluido.
+          pause
+          exit /b 0
+          :erro
+          echo.
+          echo O deploy nao foi concluido. Leia a mensagem acima.
+          pause
+          exit /b 1
+          EOF
+
+          cat > "$ROOT/TESTAR-LOCALMENTE.bat" <<'EOF'
+          @echo off
+          setlocal
+          cd /d "%~dp0"
+          where node >nul 2>nul
+          if errorlevel 1 (
+            echo Instale o Node.js LTS antes de continuar.
+            pause
+            exit /b 1
+          )
+          if not exist node_modules call npm install
+          call npx wrangler dev
+          pause
+          EOF
+
+          cat > "$ROOT/DEPLOY-CLOUDFLARE.sh" <<'EOF'
+          #!/usr/bin/env bash
+          set -e
+          cd "$(dirname "$0")"
+          npm install
+          npx wrangler deploy
+          EOF
+          chmod +x "$ROOT/DEPLOY-CLOUDFLARE.sh"
+
+          printf 'Commit de origem: %s\nGerado em UTC: %s\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%d %H:%M:%S')" > "$ROOT/VERSAO.txt"
+
+          cd dist
+          zip -r -q Nexus-Mapas-Cloudflare.zip Nexus-Mapas-Cloudflare
+
+      - name: Disponibilizar ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nexus-Mapas-Cloudflare
+          path: dist/Nexus-Mapas-Cloudflare.zip
+          retention-days: 7
+          if-no-files-found: error
