@@ -3,6 +3,7 @@
 
   const WHATSAPP_NUMBER='558899361992';
   const WHATSAPP_LABEL='(88) 9936-1992';
+  const LICENSE_PRICE='R$ 69,90';
   const AUTH_URL='https://ep-square-paper-aceqdgpa.neonauth.sa-east-1.aws.neon.tech/neondb/auth';
   const DATA_URL='https://ep-square-paper-aceqdgpa.apirest.sa-east-1.aws.neon.tech/neondb/rest/v1';
   const SDK_URL='https://esm.sh/@neondatabase/neon-js@0.7.0-beta?bundle';
@@ -27,6 +28,15 @@
   }
 
   function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function withPriceOnWhatsapp(anchor){
+    if(!anchor?.href||!anchor.href.includes('wa.me/'))return;
+    try{
+      const u=new URL(anchor.href),current=u.searchParams.get('text')||'';
+      if(!/R\$\s*69[,.]90/i.test(current))u.searchParams.set('text',(current+`\n\nValor da licença Nexus Mapas Pro: ${LICENSE_PRICE}.`).trim());
+      anchor.href=u.toString();
+    }catch{}
+    anchor.textContent=`💬 Comprar Pro — ${LICENSE_PRICE}`;
+  }
 
   function installStyle(){
     if(document.getElementById('mfLicenseSalesStyle')) return;
@@ -35,6 +45,7 @@
     s.textContent=`
       .mf-buy-box{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:12px;padding:13px;display:grid;gap:8px;margin-top:10px}
       .mf-buy-title{font-weight:800;color:#166534;font-size:15px}
+      .mf-buy-price{font-size:24px;font-weight:900;color:#075fc9;letter-spacing:-.4px}
       .mf-buy-text{font-size:12px;line-height:1.45;color:#475569}
       .mf-buy-whatsapp{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;border:0;border-radius:10px;padding:11px 12px;background:#16a34a;color:#fff;font-weight:800;cursor:pointer}
       .mf-buy-whatsapp:hover{filter:brightness(.96)}
@@ -134,11 +145,12 @@
       const builtInBuy=root.querySelector('#mfBuyLicense');
       if(builtInBuy){
         standalone?.remove();
+        withPriceOnWhatsapp(builtInBuy);
         const planText=root.querySelector('.mf-plan-card small');
-        const desired='Após a compra, você receberá um código de licença de uso único. Digite-o abaixo para ativar o Premium nesta conta.';
+        const desired=`Licença Nexus Mapas Pro por ${LICENSE_PRICE}. Após a compra, você receberá um código de licença de uso único. Digite-o abaixo para ativar o Premium nesta conta.`;
         if(user&&planText&&planText.textContent!==desired) planText.textContent=desired;
         const planStrong=root.querySelector('.mf-plan-card strong');
-        if(planStrong&&planStrong.textContent!=='Nexus Mapas Pro') planStrong.textContent='Nexus Mapas Pro';
+        if(planStrong&&planStrong.textContent!==`Nexus Mapas Pro — ${LICENSE_PRICE}`) planStrong.textContent=`Nexus Mapas Pro — ${LICENSE_PRICE}`;
         if(user&&!redeemPanel){
           const panel=createRedeemPanel();
           const note=builtInBuy.nextElementSibling;
@@ -147,12 +159,13 @@
         return;
       }
 
-      if(standalone) return;
+      if(standalone){withPriceOnWhatsapp(standalone.querySelector('.mf-buy-whatsapp'));return;}
 
       const userId=String(user?.id||'');
       const email=String(user?.email||'');
       const text=[
         'Olá! Quero adquirir uma licença Nexus Mapas Pro.',
+        `Valor: ${LICENSE_PRICE}.`,
         email?`E-mail da conta: ${email}`:'Ainda não entrei na minha conta.',
         userId?`ID da conta: ${userId}`:'',
         'Pode me informar as condições de pagamento e ativação?'
@@ -161,7 +174,7 @@
       const box=document.createElement('div');
       box.id='mfBuyLicenseSales';
       box.className='mf-buy-box';
-      box.innerHTML=`<div class="mf-buy-title">Adquirir licença Nexus Mapas Pro</div><div class="mf-buy-text">${user?'Após confirmar a compra, você receberá um código de licença de uso único para vincular o Premium à sua conta.':'Fale com o responsável pelo WhatsApp. Para ativar a licença depois, crie ou entre em uma conta no Nexus Mapas.'}</div><a class="mf-buy-whatsapp" target="_blank" rel="noopener noreferrer" href="https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}">💬 Comprar pelo WhatsApp</a><div class="mf-buy-contact">Contato oficial: ${esc(WHATSAPP_LABEL)}</div>`;
+      box.innerHTML=`<div class="mf-buy-title">Adquirir licença Nexus Mapas Pro</div><div class="mf-buy-price">${LICENSE_PRICE}</div><div class="mf-buy-text">${user?'Após confirmar a compra, você receberá um código de licença de uso único para vincular o Premium à sua conta.':'Fale com o responsável pelo WhatsApp. Para ativar a licença depois, crie ou entre em uma conta no Nexus Mapas.'}</div><a class="mf-buy-whatsapp" target="_blank" rel="noopener noreferrer" href="https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}">💬 Comprar Pro — ${LICENSE_PRICE}</a><div class="mf-buy-contact">Contato oficial: ${esc(WHATSAPP_LABEL)}</div>`;
 
       if(user) box.appendChild(createRedeemPanel());
 
