@@ -70,31 +70,6 @@
       const h=document.createElement('div');h.className='nexus-panel-title';h.textContent='Propriedades';inspector.prepend(h);
     }
   }
-
-  let installPrompt=null;
-  function isStandalone(){return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;}
-  function installDownloadButton(){
-    const btn=document.getElementById('installApp');if(!btn)return;
-    if(isStandalone()){btn.style.setProperty('display','none','important');return;}
-    btn.textContent='⬇ Baixar';
-    btn.title='Instalar Nexus Mapas neste dispositivo';
-    btn.style.setProperty('display','inline-flex','important');
-    if(btn.dataset.nxInstallBound==='1')return;
-    btn.dataset.nxInstallBound='1';
-    btn.addEventListener('click',async e=>{
-      e.preventDefault();e.stopImmediatePropagation();
-      if(installPrompt){
-        try{installPrompt.prompt();await installPrompt.userChoice;}catch{}
-        installPrompt=null;installDownloadButton();return;
-      }
-      const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
-      if(ios) alert('Para baixar o Nexus Mapas: toque em Compartilhar e depois em “Adicionar à Tela de Início”.');
-      else alert('Para instalar o Nexus Mapas: abra o menu ⋮ do navegador e escolha “Instalar app” ou “Adicionar à tela inicial”.');
-    },true);
-  }
-  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;installDownloadButton();});
-  window.addEventListener('appinstalled',()=>{installPrompt=null;installDownloadButton();});
-
   function addPriceToWhatsappLink(a){
     if(!a?.href||!a.href.includes('wa.me/'))return;
     try{
@@ -115,19 +90,9 @@
       if(tabs)tabs.insertAdjacentElement('afterend',box);else body.prepend(box);
     }
   }
-
-  let fitTimer=0;
-  function fitMobileMap(){
-    if(innerWidth>760||document.body.classList.contains('presenting'))return;
-    clearTimeout(fitTimer);fitTimer=setTimeout(()=>{try{if(typeof fit==='function')fit();}catch{}},100);
-  }
-  function install(){installBrand();installPanelTitles();installDownloadButton();polishLicensePrice();}
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>{install();setTimeout(fitMobileMap,250);},{once:true}); else {install();setTimeout(fitMobileMap,250);}
-  setTimeout(()=>{install();fitMobileMap();},900);
-  setTimeout(fitMobileMap,1800);
-  window.addEventListener('resize',()=>{installDownloadButton();fitMobileMap();},{passive:true});
-  window.addEventListener('orientationchange',()=>setTimeout(fitMobileMap,250),{passive:true});
-  window.visualViewport?.addEventListener('resize',fitMobileMap,{passive:true});
-  const observer=new MutationObserver(()=>{installBrand();installPanelTitles();installDownloadButton();polishLicensePrice();});
+  function install(){installBrand();installPanelTitles();polishLicensePrice();}
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install,{once:true}); else install();
+  setTimeout(install,250);setTimeout(install,900);
+  const observer=new MutationObserver(()=>{installBrand();installPanelTitles();polishLicensePrice();});
   observer.observe(document.documentElement,{childList:true,subtree:true});
 })();
